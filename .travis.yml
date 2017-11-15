@@ -8,7 +8,9 @@ cache: bundler
 
 rvm:
   - 2.4
- 
+env:
+- CHEF_VERSION="~> 12.8"
+
 before_install:
   - docker pull vault
  
@@ -22,6 +24,9 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
+  - echo $PATH
+  - echo ${BUNDLE_PATH:-vendor/bundle}
+  - export PATH=$PATH:${BUNDLE_PATH:-vendor/bundle}
   - foodcritic -f any .
   - cookstyle -D
   - kitchen converge all

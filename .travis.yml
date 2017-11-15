@@ -9,12 +9,13 @@ rvm:
   - 2.4
  
 before_script:
- - docker run --privileged --cap-add=IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
+ - docker run --privileged --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
  - VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
  - docker logs $VAULT_CONTAINER_ID
  #- VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
- - VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`
- - export VAULT_ROOT_TOKEN
+ #- VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`
+ #- export VAULT_ROOT_TOKEN
+ - export VAULT_CONTAINER_ID
  # Mount the secret and pki backends
  # Populate vault with some data
   

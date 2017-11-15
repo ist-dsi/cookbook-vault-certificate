@@ -16,6 +16,7 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
+  - bundle show foodcritic
   - bundle exec foodcritic -f any .
   - bundle exec cookstyle -D
   - bundle exec kitchen converge all

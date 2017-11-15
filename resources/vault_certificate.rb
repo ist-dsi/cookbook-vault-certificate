@@ -1,6 +1,7 @@
 resource_name :vault_certificate
 
 require 'vault'
+# require 'openssl'
 
 use_inline_resources
 

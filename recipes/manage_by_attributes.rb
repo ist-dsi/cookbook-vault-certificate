@@ -1,4 +1,4 @@
-node['certificate'].each do |cert|
+node['vault_certificate'].each do |cert|
   cert.each_pair do |id, opts|
     Chef::Log.debug "Create certs #{id} from attribute"
     vault_certificate id do

@@ -60,16 +60,16 @@ property :vault_dynamic_path, String, default: lazy {
 }, required: true
 
 # :certificate_path is the top-level directory for certs/keys (certs and private sub-folders are where the files will be placed)
-property :certificate_path, String, default: case node['platform_family']
-                                             when 'rhel', 'fedora'
-                                               '/etc/pki/tls'
-                                             when 'debian'
-                                               '/etc/ssl'
-                                             when 'smartos'
-                                               '/opt/local/etc/openssl'
-                                             else
-                                               '/etc/ssl'
-                                             end
+property :certificate_path, String, required: true, default: case node['platform_family']
+                                                             when 'rhel', 'fedora'
+                                                               '/etc/pki/tls'
+                                                             when 'debian'
+                                                               '/etc/ssl'
+                                                             when 'smartos'
+                                                               '/opt/local/etc/openssl'
+                                                             else
+                                                               '/etc/ssl'
+                                                             end
 
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
 property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
@@ -114,7 +114,7 @@ action_class do
     directory ::File.join(new_resource.certificate_path, dir) do
       owner new_resource.owner
       group new_resource.group
-      mode(private ? 00750 : 00755)
+      mode (private ? 00750 : 00755)
       recursive true
     end
   end
@@ -123,9 +123,8 @@ action_class do
     file path do
       owner new_resource.owner
       group new_resource.group
-      mode(private ? 00640 : 00644)
+      mode (private ? 00640 : 00644)
       content contents
-      only_if { content }
       sensitive private
     end
   end

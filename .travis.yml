@@ -9,19 +9,19 @@ rvm:
   - 2.4
  
 before_install:
- - docker pull vault
+  - docker pull vault
  
 before_script:
- - VAULT_CONTAINER_ID=`docker run-e 'VAULT_LOCAL_CONFIG={"disable_mlock\: true"}' -d --name=dev-vault -p 8200:8200 vault`
- - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
+  - VAULT_CONTAINER_ID=`docker run -e 'VAULT_LOCAL_CONFIG={"disable_mlock":" true"}' -d --name=dev-vault -p 8200:8200 vault`
+  - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
  #- VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`
   - export VAULT_ROOT_TOKEN
  # Mount the secret and pki backends
  # Populate vault with some data
   
 script:
- - echo "Container ID = $VAULT_CONTAINER_ID"
- - echo "Root Token = $VAULT_ROOT_TOKEN"
- - foodcritic -f any .
- - cookstyle -D
- - kitchen converge all
+  - echo "Container ID = $VAULT_CONTAINER_ID"
+  - echo "Root Token = $VAULT_ROOT_TOKEN"
+  - foodcritic -f any .
+  - cookstyle -D
+  - kitchen converge all

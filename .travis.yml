@@ -14,12 +14,8 @@ before_install:
  
 before_script:
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
-  - echo $VAULT_CONTAINER_ID
-  - sleep 5
-  #- docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
-  #- VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
+  - sleep 3 # Allow the container to fully initialize
   - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
-  - echo $VAULT_ROOT_TOKEN
   - export VAULT_ROOT_TOKEN
  # Mount the secret and pki backends
  # Populate vault with some data

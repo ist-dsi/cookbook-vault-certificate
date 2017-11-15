@@ -115,7 +115,7 @@ action_class do
     directory ::File.join(new_resource.certificate_path, dir) do
       owner new_resource.owner
       group new_resource.group
-      mode (private ? 00750 : 00755)
+      mode(private ? 00750 : 00755)
       recursive true
     end
   end
@@ -124,7 +124,7 @@ action_class do
     file path do
       owner new_resource.owner
       group new_resource.group
-      mode (private ? 00640 : 00644)
+      mode(private ? 00640 : 00644)
       content contents
       sensitive private
     end

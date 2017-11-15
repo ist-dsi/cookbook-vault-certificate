@@ -6,6 +6,8 @@ services:
 language: ruby
 cache: bundler
 
+bundler_args: --binstubs
+
 before_script:
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
   - sleep 2 # Allow the container to fully initialize
@@ -16,8 +18,6 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
-  - updatedb
-  - locate foodcritic
   - foodcritic -f any .
   - cookstyle -D
   - kitchen converge all

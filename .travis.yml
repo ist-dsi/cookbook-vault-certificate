@@ -12,8 +12,10 @@ before_install:
   - docker pull vault
  
 before_script:
-  - docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
-  - VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`
+  - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
+  #- docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
+  #- VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
+  - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
   - echo $VAULT_ROOT_TOKEN
   - export VAULT_ROOT_TOKEN
  # Mount the secret and pki backends

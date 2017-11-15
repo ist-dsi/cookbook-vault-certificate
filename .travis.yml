@@ -9,10 +9,12 @@ rvm:
   - 2.4
  
 before_script:
- - docker run --privileged -d --name=dev-vault -p 8200:8200 vault
+ - docker run --privileged --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
  - VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
  - echo $VAULT_CONTAINER_ID
  - docker logs $VAULT_CONTAINER_ID
+ - docker logs $VAULT_CONTAINER_ID
+ - docker logs `docker inspect --format="{{.Id}}" dev-vault`
  - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
  - echo $VAULT_ROOT_TOKEN
  #- VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`

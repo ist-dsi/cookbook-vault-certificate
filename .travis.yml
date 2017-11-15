@@ -11,8 +11,10 @@ rvm:
 before_script:
  - docker run --privileged -d --name=dev-vault -p 8200:8200 vault
  - VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
+ - echo $VAULT_CONTAINER_ID
  - docker logs $VAULT_CONTAINER_ID
- #- VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
+ - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
+ - echo $VAULT_ROOT_TOKEN
  #- VAULT_ROOT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep -Po "(?<=Root Token. )([^\n]+)"`
  #- export VAULT_ROOT_TOKEN
  - export VAULT_CONTAINER_ID
@@ -20,8 +22,8 @@ before_script:
  # Populate vault with some data
   
 script:
- - echo "Container ID: $VAULT_CONTAINER_ID"
- - echo "Root Token: $VAULT_ROOT_TOKEN"
+ - echo "Container ID = $VAULT_CONTAINER_ID"
+ - echo "Root Token = $VAULT_ROOT_TOKEN"
  - foodcritic -f any .
  - cookstyle -D
  - kitchen converge all

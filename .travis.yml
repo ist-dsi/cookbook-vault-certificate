@@ -16,6 +16,9 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
+  - export PATH=$PATH:$(pwd)/vendor/bundle/ruby/2.4.0/bin
+  - ls $(pwd)/vendor/bundle/ruby/2.4.0/bin
+  - foodcritic -f any .
   - bundle show foodcritic
   - bundle exec foodcritic -f any .
   - bundle exec cookstyle -D

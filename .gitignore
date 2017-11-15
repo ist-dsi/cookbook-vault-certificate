@@ -1,0 +1,6 @@
+.kitchen/
+
+Berksfile.lock
+.vagrant/
+
+.idea/

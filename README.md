@@ -1,0 +1,2 @@
+Vault Certificate cookbook
+====================

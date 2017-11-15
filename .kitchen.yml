@@ -1,0 +1,26 @@
+driver:
+  name: docker
+  use_sudo: false
+  links:
+    - dev-vault:dev-vault
+  run_options:
+    net: bridge
+
+platforms:
+  - name: debian-9.2
+  - name: centos-7
+
+suites:
+  - name: default
+    run_list: ["recipe[vault-certificate::manage_by_attributes]"]
+    attributes:
+      certificate: [
+        test: {
+          service_name: 'test',
+          version: 'v1-2017-11-05',
+          certificate_common_name: 'test.example.com',
+          vault_pki_role: 'example-dot-com',
+          address: 'http://dev-vault:8200/',
+          token: 'abcd-1234',
+        }
+      ]

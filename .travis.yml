@@ -6,12 +6,9 @@ services:
 language: ruby
 cache: bundler
 
-before_install:
-  - docker pull vault
- 
 before_script:
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
-  - sleep 3 # Allow the container to fully initialize
+  - sleep 2 # Allow the container to fully initialize
   - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
   - export VAULT_ROOT_TOKEN
  # Mount the secret and pki backends
@@ -19,7 +16,7 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
-  - which foodcritic
+  - updatedb
   - locate foodcritic
   - foodcritic -f any .
   - cookstyle -D

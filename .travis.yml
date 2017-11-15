@@ -13,7 +13,7 @@ before_install:
  
 before_script:
   - |
-    docker run --cap-drop IPC_LOCK -e 'VAULT_LOCAL_CONFIG={ "disable_mlock": true }' -d --name=dev-vault -p 8200:8200 vault
+    docker run --cap-drop IPC_LOCK -e 'VAULT_LOCAL_CONFIG={ "disable_mlock": "true" }' -d --name=dev-vault -p 8200:8200 vault
   - VAULT_CONTAINER_ID=`docker inspect --format="{{.Id}}" dev-vault`
   - docker logs $VAULT_CONTAINER_ID
   - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`

@@ -18,6 +18,7 @@ install: echo "skip bundle install"
 before_script:
   - sudo iptables -L DOCKER || ( echo "DOCKER iptables chain missing" ; sudo iptables -N DOCKER )
   - eval "$(chef shell-init bash)"
+  - chef gem install kitchen-docker
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
   - sleep 2 # Allow the container to fully initialize
   - |

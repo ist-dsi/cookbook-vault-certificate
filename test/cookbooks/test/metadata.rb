@@ -8,7 +8,7 @@ source_url 'https://github.com/ist-dsi/cookbook-vault-certificate'
 
 license 'Apache-2.0'
 
-version '1.0.0'
+version '0.0.1'
 
 %w( centos debian ).each do |os|
   supports os

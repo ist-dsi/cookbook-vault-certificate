@@ -1,12 +1,23 @@
 sudo: required
+dist: trusty
 
 services:
   - docker
 
 language: ruby
-cache: bundler
+
+addons:
+  apt:
+    sources:
+      - chef-current-trusty
+    packages:
+      - chefdk
+
+install: echo "skip bundle install"
 
 before_script:
+  - sudo iptables -L DOCKER || ( echo "DOCKER iptables chain missing" ; sudo iptables -N DOCKER )
+  - eval "$(chef shell-init bash)"
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
   - sleep 2 # Allow the container to fully initialize
   - |
@@ -17,6 +28,6 @@ before_script:
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
-  - bundle exec foodcritic -f any .
-  - bundle exec cookstyle -D
-  - bundle exec kitchen converge all
+  - foodcritic -f any .
+  - cookstyle -D
+  - kitchen converge all

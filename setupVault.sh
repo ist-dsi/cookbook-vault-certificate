@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-VAULT_ADDRESS=http://dev-vault:8200
+VAULT_ADDRESS=http://localhost:8200
 
 VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
 sleep 2

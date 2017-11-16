@@ -1,9 +1,11 @@
 Chef::Log.warn("Vault Address is #{node['vault_certificate']['address']}")
 Chef::Log.warn("Vault Root Token is #{node['vault_certificate']['token']}")
+Chef::Log.warn("Environment #{node.environment}")
+
 
 vault_certificate 'test.example.com' do
   service_name 'test'
-  version 'v1-2017-11-05'  
+  version 'v1-2017-11-05'
 end
 
 # certificate_common_name: ,

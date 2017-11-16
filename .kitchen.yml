@@ -24,4 +24,4 @@ suites:
       vault_certificate:
         address: 'http://dev-vault:8200/'
         token: <%= ENV['VAULT_ROOT_TOKEN'] %>
-        vault_pki_role: 'example-dot-com'
+        pki_role: 'example-com'

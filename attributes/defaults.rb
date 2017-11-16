@@ -6,15 +6,15 @@ node.default['vault_certificate'] = {
   # This is an array of regexes. If any regex matches then the static path will be used.
   'static_environments' => [/production/, /staging/],
   # The Vault mountpoint used for static environments.
-  'vault_static_mountpoint' => 'secret',
+  'static_mountpoint' => 'secret',
   # The path to use in vault_static_path when use_common_path is set to true.
-  'vault_common_path' => 'common',
+  'common_path' => 'common',
   # Whether to use vault_common_path in the path for static environments.
   'use_common_path' => true,
   # The last path to use in the path for static environments.
-  'vault_certificates_path' => 'certificates',
+  'certificates_path' => 'certificates',
   # The Vault mountpoint used for dynamic environments.
-  'vault_dynamic_mountpoint' => 'pki/issue',
+  'dynamic_mountpoint' => 'pki/issue',
   # The pki role used for the path of dynamic environments.
-  'vault_pki_role' => nil,
+  'pki_role' => nil,
 }

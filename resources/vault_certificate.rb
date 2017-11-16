@@ -20,50 +20,39 @@ property :token, String, default: node['vault_certificate']['token'], required: 
 property :static_environments, Array, default: node['vault_certificate']['static_environments']
 
 # The Vault mountpoint used for static environments. By default 'secret',
-property :vault_static_mountpoint, String, default: node['vault_certificate']['vault_static_mountpoint'], required: true
-# The path to use in :vault_static_path when :use_common_path is set to true. By default 'common'.
-property :vault_common_path, String, default: node['vault_certificate']['vault_common_path'], required: true
-# Whether to use :vault_common_path in :vault_static_path.
-# If true the :vault_static_path by default would be:
+property :static_mountpoint, String, default: node['vault_certificate']['static_mountpoint'], required: true
+# The path to use in :static_path when :use_common_path is set to true. By default 'common'.
+property :common_path, String, default: node['vault_certificate']['common_path'], required: true
+# Whether to use :common_path in :static_path.
+# If true the :static_path by default would be:
 #   "secret/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
 # Otherwise
 #   "secret/#{service_name}/#{environment}/#{version}/certificates/#{certificate_common_name}"
 property :use_common_path, equal_to: [true, false], default: node['vault_certificate']['use_common_path'], required: true
-# The last path to use in :vault_static_path. By default 'certificates'.
-property :vault_certificates_path, String, default: node['vault_certificate']['vault_certificates_path'], required: true
+# The last path to use in :static_path. By default 'certificates'.
+# TODO: find a better name for this property or for the certificate_path
+property :certificates_path, String, default: node['vault_certificate']['certificates_path'], required: true
 # The full path used, in a static environment, to get the certificate from Vault.
 # By default "secrets/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
-property :vault_static_path, String, default: lazy {
-  start = "#{vault_static_mountpoint}/#{service_name}/#{new_resource.environment}"
-  finish = "#{vault_certificates_path}/#{certificate_common_name}"
+property :static_path, String, default: lazy {
+  start = "#{static_mountpoint}/#{service_name}/#{new_resource.environment}"
+  finish = "#{certificates_path}/#{certificate_common_name}"
   if use_common_path
-    "#{start}/#{vault_common_path}/#{finish}"
+    "#{start}/#{common_path}/#{finish}"
   else
     "#{start}/#{new_resource.version}/#{finish}"
   end
 }, required: true
 
 # The Vault mountpoint used for dynamic environments. By default 'pki/issue'
-property :vault_dynamic_mountpoint, String, default: node['vault_certificate']['vault_dynamic_mountpoint'], required: true
+property :dynamic_mountpoint, String, default: node['vault_certificate']['dynamic_mountpoint'], required: true
 # The role used in vault pki to generate new certificates.
-property :vault_pki_role, String, default: lazy { node['vault_certificate']['vault_pki_role'] }, required: true
+property :pki_role, String, default: lazy { node['vault_certificate']['pki_role'] }, required: true
 # The full path used, in a dynamic environment, to get the certificate from Vault.
 # By default "pki/issue common_name=#{certificate_common_name}"
-property :vault_dynamic_path, String, default: lazy {
-  "#{vault_dynamic_mountpoint}/#{vault_pki_role} common_name=#{certificate_common_name}"
+property :dynamic_path, String, default: lazy {
+  "#{dynamic_mountpoint}/#{pki_role} common_name=#{certificate_common_name}"
 }, required: true
-
-# :certificate_path is the top-level directory for certs/keys (certs and private sub-folders are where the files will be placed)
-property :certificate_path, String, required: true, default: case node['platform_family']
-                                                             when 'rhel', 'fedora'
-                                                               '/etc/pki/tls'
-                                                             when 'debian'
-                                                               '/etc/ssl'
-                                                             when 'smartos'
-                                                               '/opt/local/etc/openssl'
-                                                             else
-                                                               '/etc/ssl'
-                                                             end
 
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
 property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
@@ -71,14 +60,37 @@ property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
 property :combine_all, [TrueClass, FalseClass], default: false
 
 # :certificate_file is the filename for the managed certificate.
-property :certificate_file, String, default: "#{node['fqdn']}.pem"
+property :certificate_filename, String, default: "#{node['fqdn']}.pem"
 # :key_file is the filename for the managed key.
-property :key_file, String, default: "#{node['fqdn']}.key"
+property :key_filename, String, default: "#{node['fqdn']}.key"
 # :chain_file is the filename for the managed CA chain.
-property :chain_file, String, default: "#{node['hostname']}-bundle.crt"
+property :chain_filename, String, default: "#{node['hostname']}-bundle.crt"
+
+# :certificate_path is the top-level directory for certs/keys.
+# If create_subfolders is true then
+#   certificates and chains will be created inside #{certificate_path}/certs
+#   private keys will be created inside #{certificate_path}/private
+# Otherwise
+#   certificates, chains and private keys will be created directly inside certificate_path.
+# TODO: find a better name for this property or for the certificates_path
+property :certificate_path, String, required: true, default: case node['platform_family']
+                                                               when 'rhel', 'fedora'
+                                                                 '/etc/pki/tls'
+                                                               when 'smartos'
+                                                                 '/opt/local/etc/openssl'
+                                                               when 'windows'
+                                                                 Chef::Config[:file_cache_path]
+                                                               else
+                                                                 '/etc/ssl'
+                                                             end
 
 # :create_subfolders will automatically create 'certs' and 'private' sub-folders
-property :create_subfolders, [TrueClass, FalseClass], default: true
+property :create_subfolders, [TrueClass, FalseClass], default: case node['platform_family']
+                                                                 when 'debian', 'rhel', 'fedora', 'smartos'
+                                                                   true
+                                                                 else
+                                                                   false
+                                                               end
 
 # The owner and group of the subfolders, the certificate, the chain and the private key
 property :owner, String, default: 'root'
@@ -87,19 +99,19 @@ property :group, String, default: 'root'
 action_class do
   # Accesors for determining where files should be placed
   def certificate
-    bits = [certificate_path, certificate_file]
+    bits = [certificate_path, certificate_filename]
     bits.insert(1, 'certs') if create_subfolders
     ::File.join(bits)
   end
 
   def key
-    bits = [certificate_path, key_file]
+    bits = [certificate_path, key_filename]
     bits.insert(1, 'private') if create_subfolders
     ::File.join(bits)
   end
 
   def chain
-    bits = [certificate_path, chain_file]
+    bits = [certificate_path, chain_filename]
     bits.insert(1, 'certs') if create_subfolders
     ::File.join(bits)
   end
@@ -127,12 +139,16 @@ end
 action :create do
   ssl_item = begin
     vault_client = Vault::Client.new(address: new_resource.address, token: new_resource.token)
-    if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
-      vault_client.logical.read(new_resource.vault_static_path).data
+    if static_environments.count { |r| r.match(new_resource.environment) } > 0
+      result = vault_client.logical.read(static_path)
+      Chef::Log.debug("vault-certificate: in a static environment. Static Path: #{static_path}. Result: #{result}")
+      result.data
     else
       # We need to massage .data to ensure it is a json object with the fields
       # ['cert'], ['chain'], ['key']
-      vault_client.logical.read(new_resource.vault_dynamic_path).data
+      result = vault_client.logical.read(dynamic_path)
+      Chef::Log.debug("vault-certificate: in a dynamic environment. Dynamic Path: #{dynamic_path}. Result: #{result}")
+      result.data
     end
   rescue => e
     Chef::Application.fatal!(e.message)

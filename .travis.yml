@@ -9,17 +9,14 @@ cache: bundler
 before_script:
   - VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
   - sleep 2 # Allow the container to fully initialize
-  - VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token. )([^\n]+)"`
+  - |
+    VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token: )([^\n]+)"`
   - export VAULT_ROOT_TOKEN
  # Mount the secret and pki backends
  # Populate vault with some data
   
 script:
   - echo "Root Token = $VAULT_ROOT_TOKEN"
-  - export PATH=$PATH:$(pwd)/vendor/bundle/ruby/2.4.0/bin
-  - ls $(pwd)/vendor/bundle/ruby/2.4.0/bin
-  - foodcritic -f any .
-  - bundle show foodcritic
   - bundle exec foodcritic -f any .
   - bundle exec cookstyle -D
   - bundle exec kitchen converge all

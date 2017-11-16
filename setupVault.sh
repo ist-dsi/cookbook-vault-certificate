@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 VAULT_ADDRESS=http://localhost:8200
 
+docker pull vault
 VAULT_CONTAINER_ID=`docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault`
-sleep 2
+sleep 5
 export VAULT_ROOT_TOKEN=`docker logs $VAULT_CONTAINER_ID | grep -Po "(?<=Root Token: )([^\n]+)" | tail -n1`
 
 curl --header "X-Vault-Token: $VAULT_ROOT_TOKEN" \

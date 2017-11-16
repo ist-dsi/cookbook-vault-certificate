@@ -3,8 +3,6 @@ resource_name :vault_certificate
 require 'vault'
 # require 'openssl'
 
-use_inline_resources
-
 default_action :create
 
 property :service_name, String, required: true
@@ -15,9 +13,7 @@ property :certificate_common_name, String, name_property: true, required: true
 # The address of the Vault Server,
 property :address, String, default: node['vault_certificate']['address'], required: true
 # The token used to authenticate against the Vault Server
-# property :token, String, default: node['vault_certificate']['token'], required: true
-# Is putting the token in an attribute a good idea?
-property :token, String, required: true
+property :token, String, default: node['vault_certificate']['token'], required: true
 
 # The list of environments for which the static path will be used to retrieve the Certificate from Vault.
 # This is an array of regexes. If any regex matches then the static path will be used.
@@ -25,7 +21,6 @@ property :static_environments, Array, default: node['vault_certificate']['static
 
 # The Vault mountpoint used for static environments. By default 'secret',
 property :vault_static_mountpoint, String, default: node['vault_certificate']['vault_static_mountpoint'], required: true
-
 # The path to use in :vault_static_path when :use_common_path is set to true. By default 'common'.
 property :vault_common_path, String, default: node['vault_certificate']['vault_common_path'], required: true
 # Whether to use :vault_common_path in :vault_static_path.
@@ -36,7 +31,6 @@ property :vault_common_path, String, default: node['vault_certificate']['vault_c
 property :use_common_path, equal_to: [true, false], default: node['vault_certificate']['use_common_path'], required: true
 # The last path to use in :vault_static_path. By default 'certificates'.
 property :vault_certificates_path, String, default: node['vault_certificate']['vault_certificates_path'], required: true
-
 # The full path used, in a static environment, to get the certificate from Vault.
 # By default "secrets/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
 property :vault_static_path, String, default: lazy {
@@ -53,7 +47,6 @@ property :vault_static_path, String, default: lazy {
 property :vault_dynamic_mountpoint, String, default: node['vault_certificate']['vault_dynamic_mountpoint'], required: true
 # The role used in vault pki to generate new certificates.
 property :vault_pki_role, String, default: lazy { node['vault_certificate']['vault_pki_role'] }, required: true
-
 # The full path used, in a dynamic environment, to get the certificate from Vault.
 # By default "pki/issue common_name=#{certificate_common_name}"
 property :vault_dynamic_path, String, default: lazy {

@@ -1,6 +1,7 @@
 node.default['vault_certificate'] = {
   # The address of the Vault Server.
   'address' => 'http://127.0.0.1:8200',
+  # 'token' has no default value on purpose!
   # The list of environments for which the static path will be used to retrieve the Certificate from Vault.
   # This is an array of regexes. If any regex matches then the static path will be used.
   'static_environments' => [/production/, /staging/],

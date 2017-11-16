@@ -5,6 +5,7 @@ driver:
     - dev-vault:dev-vault
   run_options:
     net: bridge
+  # dockerfile: test/dockerfile
 
 # Preparing for Chef 13
 client_rb:
@@ -19,3 +20,8 @@ suites:
   - name: default
     run_list:
       - recipe[test::default]
+    attributes:
+      vault_certificate:
+        address: 'http://dev-vault:8200/'
+        token: <%= ENV['VAULT_ROOT_TOKEN'] %>
+        vault_pki_role: 'example-dot-com'

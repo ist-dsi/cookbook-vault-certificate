@@ -16,4 +16,4 @@ end
 
 chef_version '>= 12.8'
 
-depends 'vault_certificate'
+depends 'vault_certificate', '>= 0.0.0'

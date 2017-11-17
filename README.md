@@ -27,11 +27,11 @@ This resource is able to fetch ssl certificates, their corresponding chain and p
 #### Service properties
 Property                      | Description                                                                                        | Example                                  | Default
 ----------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------
-certificate_common_name       |                                                                                                    | example-service.example.com              | Resource name
+certificate_common_name       | CN of the certificate.                                                                             | example-service.example.com              | Resource name
 service_name                  |                                                                                                    | example-service                          | Must be specified.
 environment                   |                                                                                                    | staging                                  | node.environment
 version                       |                                                                                                    | v1-2017-10-15                            | Empty string.
-static_environments           | the list of environments for which the `static_path` will be used to retrieve the Certificate from Vault. This is an array of regexes. If any regex matches then the static_path will be used. | [/staging-\d+/, /production | [/production/, /staging/]
+static_environments           | if environment matches any regex in `static_environment` then `static_path` will be used. Otherwise `dynamic_path` will be used. | [/staging-\d+/, /production | [/production/, /staging/]
 
 #### Vault properties
 Property | Description                                              | Example                                  | Default
@@ -46,7 +46,7 @@ static_mountpoint | the Vault mountpoint used for static environments.          
 common_path       | the path to use in `static_path` when `use_common_path` is set to true.                               | 'common'  | 'common'
 use_common_path   | whether to use `common_path` in `static_path`.                                                        | true      | true
 certificates_path | the last path to use in `static_path`. This allows having multiple certificates for a single service. | 'certs'   | 'certificates'
-static_path       | the full path used to get the certificate from Vault.                       | 'secret/example-service/staging/common/certificates/example-service' | Explained below.
+static_path       | the full path used to get the certificate from Vault.                       | 'secret/example-service/staging/common/certificates/example-service.example.com' | Explained below.
 
 #### Dynamic environment properties
 Property           | Description                                              | Example                     | Default

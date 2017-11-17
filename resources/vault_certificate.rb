@@ -5,54 +5,62 @@ require 'vault'
 
 default_action :create
 
-property :service_name, String, required: true
+property :service_name, String, default: lazy { node['vault_certificate']['service_name'] }, required: true, callbacks: {
+  'service_name cannot be empty' => lambda {|p| !p.empty?}
+}
 property :environment, String, default: node.chef_environment, required: true
-property :version, String, required: true
+property :version, String, default: lazy { node['vault_certificate']['version'] }, required: true
 property :certificate_common_name, String, name_property: true, required: true
 
 # The address of the Vault Server,
-property :address, String, default: node['vault_certificate']['address'], required: true
+property :address, String, default: lazy { node['vault_certificate']['address'] }, required: true
 # The token used to authenticate against the Vault Server
-property :token, String, default: node['vault_certificate']['token'], required: true
+property :token, String, default: lazy { node['vault_certificate']['token'] }, required: true
 
 # The list of environments for which the static path will be used to retrieve the Certificate from Vault.
 # This is an array of regexes. If any regex matches then the static path will be used.
-property :static_environments, Array, default: node['vault_certificate']['static_environments']
+property :static_environments, Array, default: lazy { node['vault_certificate']['static_environments'] }
 
 # The Vault mountpoint used for static environments. By default 'secret',
-property :static_mountpoint, String, default: node['vault_certificate']['static_mountpoint'], required: true
+property :static_mountpoint, String, default: lazy { node['vault_certificate']['static_mountpoint'] }, required: true
 # The path to use in :static_path when :use_common_path is set to true. By default 'common'.
-property :common_path, String, default: node['vault_certificate']['common_path'], required: true
+property :common_path, String, default: lazy { node['vault_certificate']['common_path'] }, required: true
 # Whether to use :common_path in :static_path.
 # If true the :static_path by default would be:
 #   "secret/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
 # Otherwise
 #   "secret/#{service_name}/#{environment}/#{version}/certificates/#{certificate_common_name}"
-property :use_common_path, equal_to: [true, false], default: node['vault_certificate']['use_common_path'], required: true
+property :use_common_path, equal_to: [true, false], default: lazy { node['vault_certificate']['use_common_path'] }, required: true
 # The last path to use in :static_path. By default 'certificates'.
 # TODO: find a better name for this property or for the certificate_path
-property :certificates_path, String, default: node['vault_certificate']['certificates_path'], required: true
+property :certificates_path, String, default: lazy { node['vault_certificate']['certificates_path'] }, required: true
 # The full path used, in a static environment, to get the certificate from Vault.
 # By default "secrets/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
 property :static_path, String, default: lazy {
-  start = "#{static_mountpoint}/#{service_name}/#{new_resource.environment}"
+  start = "#{static_mountpoint}/#{service_name}/#{environment}"
   finish = "#{certificates_path}/#{certificate_common_name}"
   if use_common_path
     "#{start}/#{common_path}/#{finish}"
   else
-    "#{start}/#{new_resource.version}/#{finish}"
+    Chef::Application.fatal!("When use_common_path is false, version must be specified! Got version = '#{version}'.") if version.empty?
+    "#{start}/#{version}/#{finish}"
   end
 }, required: true
 
 # The Vault mountpoint used for dynamic environments. By default 'pki/issue'
-property :dynamic_mountpoint, String, default: node['vault_certificate']['dynamic_mountpoint'], required: true
+property :dynamic_mountpoint, String, default: lazy { node['vault_certificate']['dynamic_mountpoint'] }, required: true
 # The role used in vault pki to generate new certificates.
 property :pki_role, String, default: lazy { node['vault_certificate']['pki_role'] }, required: true
 # The full path used, in a dynamic environment, to get the certificate from Vault.
-# By default "pki/issue common_name=#{certificate_common_name}"
+# By default "pki/issue"
 property :dynamic_path, String, default: lazy {
-  "#{dynamic_mountpoint}/#{pki_role} common_name=#{certificate_common_name}"
+  "#{dynamic_mountpoint}/#{pki_role}"
 }, required: true
+property :dynamic_options, Hash, default: lazy {
+  { common_name: certificate_common_name }
+}, required: true
+
+
 
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
 property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
@@ -60,11 +68,11 @@ property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
 property :combine_all, [TrueClass, FalseClass], default: false
 
 # :certificate_file is the filename for the managed certificate.
-property :certificate_filename, String, default: "#{node['fqdn']}.pem"
+property :certificate_filename, String, default: lazy { "#{certificate_common_name}.pem" }
 # :key_file is the filename for the managed key.
-property :key_filename, String, default: "#{node['fqdn']}.key"
+property :key_filename, String, default: lazy { "#{certificate_common_name}.key" }
 # :chain_file is the filename for the managed CA chain.
-property :chain_filename, String, default: "#{node['hostname']}-bundle.crt"
+property :chain_filename, String, default: lazy { "#{certificate_common_name}-bundle.crt" }
 
 # :certificate_path is the top-level directory for certs/keys.
 # If create_subfolders is true then
@@ -99,20 +107,20 @@ property :group, String, default: 'root'
 action_class do
   # Accesors for determining where files should be placed
   def certificate
-    bits = [certificate_path, certificate_filename]
-    bits.insert(1, 'certs') if create_subfolders
+    bits = [new_resource.certificate_path, new_resource.certificate_filename]
+    bits.insert(1, 'certs') if new_resource.create_subfolders
     ::File.join(bits)
   end
 
   def key
-    bits = [certificate_path, key_filename]
-    bits.insert(1, 'private') if create_subfolders
+    bits = [new_resource.certificate_path, new_resource.key_filename]
+    bits.insert(1, 'private') if new_resource.create_subfolders
     ::File.join(bits)
   end
 
   def chain
-    bits = [certificate_path, chain_filename]
-    bits.insert(1, 'certs') if create_subfolders
+    bits = [new_resource.certificate_path, new_resource.chain_filename]
+    bits.insert(1, 'certs') if new_resource.create_subfolders
     ::File.join(bits)
   end
 
@@ -139,22 +147,29 @@ end
 action :create do
   ssl_item = begin
     vault_client = Vault::Client.new(address: new_resource.address, token: new_resource.token)
-    if static_environments.count { |r| r.match(new_resource.environment) } > 0
+    data = if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
+      Chef::Log.warn("vault-certificate: in a static environment. Static Path: '#{static_path}'")
       result = vault_client.logical.read(static_path)
-      Chef::Log.debug("vault-certificate: in a static environment. Static Path: #{static_path}. Result: #{result}")
+      Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.static_path}'") if result.nil?
       result.data
     else
-      # We need to massage .data to ensure it is a json object with the fields
-      # ['cert'], ['chain'], ['key']
-      result = vault_client.logical.read(dynamic_path)
-      Chef::Log.debug("vault-certificate: in a dynamic environment. Dynamic Path: #{dynamic_path}. Result: #{result}")
+      Chef::Log.warn("vault-certificate: in a dynamic environment. Dynamic Path: '#{new_resource.dynamic_path}'. Dynamic Options: #{new_resource.dynamic_options}")
+      result = vault_client.logical.write(new_resource.dynamic_path, new_resource.dynamic_options)
+      Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.dynamic_path}' and options #{new_resource.dynamic_options}") if result.nil?
       result.data
     end
+    {
+        certificate: data[:certificate],
+        chain: if data[:ca_chain].nil? then data[:issuing_ca] else data[:ca_chain].join('\n') end,
+        private_key: data[:private_key]
+    }
   rescue => e
     Chef::Application.fatal!(e.message)
   end
 
-  raise 'Could not get a certificate from Vault' if ssl_item.nil?
+  Chef::Application.fatal!('Could not get certificate from Vault') if ssl_item[:certificate].nil?
+  Chef::Application.fatal!('Could not get chain from Vault') if ssl_item[:chain].nil?
+  Chef::Application.fatal!('Could not get private_key from Vault') if ssl_item[:private_key].nil?
 
   if new_resource.create_subfolders
     cert_directory_resource 'certs'
@@ -162,16 +177,16 @@ action :create do
   end
 
   if new_resource.combine_all
-    certificate_file_resource new_resource.certificate,
-                       "#{ssl_item['cert']}\n#{ssl_item['chain']}\n#{ssl_item['key']}",
+    certificate_file_resource certificate,
+                       "#{ssl_item[:certificate]}\n#{ssl_item[:chain]}\n#{ssl_item[:private_key]}",
                        true
   else
     if new_resource.combine_certificate_and_chain
-      certificate_file_resource new_resource.certificate, "#{ssl_item['cert']}\n#{ssl_item['chain']}"
+      certificate_file_resource certificate, "#{ssl_item[:certificate]}\n#{ssl_item[:chain]}"
     else
-      certificate_file_resource new_resource.certificate, ssl_item['cert']
-      certificate_file_resource new_resource.chain, ssl_item['chain']
+      certificate_file_resource certificate, ssl_item[:certificate]
+      certificate_file_resource chain, ssl_item[:chain]
     end
-    certificate_file_resource new_resource.key, ssl_item['key'], true
+    certificate_file_resource key, ssl_item[:private_key], true
   end
 end

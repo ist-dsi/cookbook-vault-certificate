@@ -1,14 +1,9 @@
-Chef::Log.warn("Vault Address is #{node['vault_certificate']['address']}")
-Chef::Log.warn("Vault Root Token is #{node['vault_certificate']['token']}")
-Chef::Log.warn("Environment #{node.environment}")
-
-
-vault_certificate 'test.example.com' do
-  service_name 'test'
+vault_certificate 'test-with-version.example.com' do
+  service_name 'example-service'
   version 'v1-2017-11-05'
+  use_common_path false
 end
 
-# certificate_common_name: ,
-# vault_pki_role: 'example-dot-com',
-# address: 'http://dev-vault:8200/',
-# token: 'abcd-1234',
+vault_certificate 'test-common.example.com' do
+  service_name 'example-service'
+end

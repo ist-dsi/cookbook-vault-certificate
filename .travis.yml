@@ -20,10 +20,9 @@ before_script:
   - eval "$(chef shell-init bash)"
   - chef gem install kitchen-docker
   - source setupVault.sh
-  - echo $VAULT_ROOT_TOKEN
+  - echo $VAULT_TOKEN
   
 script:
-  - echo "Root Token = $VAULT_ROOT_TOKEN"
   - foodcritic -f any .
   - cookstyle -D
   - kitchen converge all

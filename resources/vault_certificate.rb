@@ -1,12 +1,13 @@
 resource_name :vault_certificate
 
 require 'vault'
-# require 'openssl'
+
+# TODO: it would be nice to support PCKS11
 
 default_action :create
 
 property :service_name, String, default: lazy { node['vault_certificate']['service_name'] }, required: true, callbacks: {
-  'service_name cannot be empty' => lambda {|p| !p.empty?}
+  'service_name cannot be empty' => ->(p) { !p.empty? },
 }
 property :environment, String, default: node.chef_environment, required: true
 property :version, String, default: lazy { node['vault_certificate']['version'] }, required: true
@@ -60,8 +61,6 @@ property :dynamic_options, Hash, default: lazy {
   { common_name: certificate_common_name }
 }, required: true
 
-
-
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
 property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
 # If true .certificate will point to a PEM file which contains the certificate, the CA trust chain, and the private key in that order.
@@ -82,28 +81,27 @@ property :key_filename, String, default: lazy { "#{certificate_common_name}.key"
 #   certificates, chains and private keys will be created directly inside certificate_path.
 # TODO: find a better name for this property or for the certificates_path
 property :certificate_path, String, required: true, default: case node['platform_family']
-                                                               when 'rhel', 'fedora'
-                                                                 '/etc/pki/tls'
-                                                               when 'smartos'
-                                                                 '/opt/local/etc/openssl'
-                                                               when 'windows'
-                                                                 Chef::Config[:file_cache_path]
-                                                               else
-                                                                 '/etc/ssl'
+                                                             when 'rhel', 'fedora'
+                                                               '/etc/pki/tls'
+                                                             when 'smartos'
+                                                               '/opt/local/etc/openssl'
+                                                             when 'windows'
+                                                               Chef::Config[:file_cache_path]
+                                                             else
+                                                               '/etc/ssl'
                                                              end
 
 # :create_subfolders will automatically create 'certs' and 'private' sub-folders
 property :create_subfolders, [TrueClass, FalseClass], default: case node['platform_family']
-                                                                 when 'debian', 'rhel', 'fedora', 'smartos'
-                                                                   true
-                                                                 else
-                                                                   false
+                                                               when 'debian', 'rhel', 'fedora', 'smartos'
+                                                                 true
+                                                               else
+                                                                 false
                                                                end
 
 # The owner and group of the subfolders, the certificate, the chain and the private key
 property :owner, String, default: 'root'
 property :group, String, default: 'root'
-
 
 # Accesors for determining where files should be placed
 def certificate
@@ -148,21 +146,19 @@ end
 action :create do
   ssl_item = begin
     vault_client = Vault::Client.new(address: new_resource.address, token: new_resource.token)
-    data = if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
+    if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
       Chef::Log.warn("vault-certificate: in a static environment. Static Path: '#{new_resource.static_path}'")
       result = vault_client.logical.read(new_resource.static_path)
       Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.static_path}'") if result.nil?
-      result.data
     else
       Chef::Log.warn("vault-certificate: in a dynamic environment. Dynamic Path: '#{new_resource.dynamic_path}'. Dynamic Options: #{new_resource.dynamic_options}")
       result = vault_client.logical.write(new_resource.dynamic_path, new_resource.dynamic_options)
       Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.dynamic_path}' and options #{new_resource.dynamic_options}") if result.nil?
-      result.data
     end
     {
-        certificate: data[:certificate],
-        chain: if data[:ca_chain].nil? then data[:issuing_ca] else data[:ca_chain].join('\n') end,
-        private_key: data[:private_key]
+      certificate: result.data[:certificate],
+      chain: result.data[:ca_chain].nil? ? result.data[:issuing_ca] : result.data[:ca_chain].join('\n'),
+      private_key: result.data[:private_key],
     }
   rescue => e
     Chef::Application.fatal!(e.message)

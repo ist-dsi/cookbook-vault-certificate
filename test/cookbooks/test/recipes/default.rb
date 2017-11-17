@@ -7,6 +7,6 @@ end
 
 cert = vault_certificate 'test-common.example.com'
 
-Chef::Log.warn("#{cert.certificate}")
-Chef::Log.warn("#{cert.chain}")
-Chef::Log.warn("#{cert.key}")
+Chef::Log.warn(cert.certificate.to_s)
+Chef::Log.warn(cert.chain.to_s)
+Chef::Log.warn(cert.key.to_s)

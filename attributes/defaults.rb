@@ -1,12 +1,14 @@
-node.default['vault_certificate'] = {
+default['vault_certificate'] = {
+  # The service name
+  'service_name' => '',
+  
+  'environment' => node.chef_environment,
+  # The service version
+  'version' => '',
   # The address of the Vault Server.
   'address' => 'http://127.0.0.1:8200',
   # The token used to authenticate against the Vault Server
   'token' => nil,
-  # The service name
-  'service_name' => '',
-  # The service version
-  'version' => '',
   # The list of environments for which the static path will be used to retrieve the Certificate from Vault.
   # This is an array of regexes. If any regex matches then the static path will be used.
   'static_environments' => [/production/, /staging/],
@@ -22,4 +24,24 @@ node.default['vault_certificate'] = {
   'dynamic_mountpoint' => 'pki/issue',
   # The pki role used for the path of dynamic environments.
   'pki_role' => nil,
+  # The owner of the subfolders, the certificate, the chain and the private key
+  'owner' => 'root',
+  # The group of the subfolders, the certificate, the chain and the private key
+  'group' => 'root',
 }
+
+default['vault_certificate']['ssl_path'] = case node['platform_family']
+                                           when 'rhel', 'fedora'
+                                             '/etc/pki/tls'
+                                           when 'smartos'
+                                             '/opt/local/etc/openssl'
+                                           else
+                                             '/etc/ssl'
+                                           end
+
+default['vault_certificate']['create_subfolders'] = case node['platform_family']
+                                                    when 'debian', 'rhel', 'fedora', 'smartos'
+                                                      true
+                                                    else
+                                                      false
+                                                    end

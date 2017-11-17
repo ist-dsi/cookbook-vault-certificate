@@ -13,8 +13,10 @@ client_rb:
   resource_cloning: false
 
 platforms:
-  - name: debian-9.2
-  - name: centos-7
+  - name: debian
+  - name: centos
+  - name: ubuntu
+  - name: fedora
 
 suites:
   - name: dynamic

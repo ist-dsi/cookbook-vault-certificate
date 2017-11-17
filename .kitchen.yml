@@ -16,10 +16,6 @@ platforms:
   - name: debian-9.2
   - name: centos-7
 
-provisioner:
-  name: chef_zero
-  environments_path: test/environments
-
 suites:
   - name: dynamic
     run_list:
@@ -33,6 +29,8 @@ suites:
     run_list:
       - recipe[test::default]
     provisioner:
+      name: chef_zero
+      environments_path: test/environments/
       client_rb:
         environment: production
     attributes:

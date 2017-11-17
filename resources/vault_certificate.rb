@@ -69,10 +69,10 @@ property :combine_all, [TrueClass, FalseClass], default: false
 
 # :certificate_file is the filename for the managed certificate.
 property :certificate_filename, String, default: lazy { "#{certificate_common_name}.pem" }
-# :key_file is the filename for the managed key.
-property :key_filename, String, default: lazy { "#{certificate_common_name}.key" }
 # :chain_file is the filename for the managed CA chain.
 property :chain_filename, String, default: lazy { "#{certificate_common_name}-bundle.crt" }
+# :key_file is the filename for the managed key.
+property :key_filename, String, default: lazy { "#{certificate_common_name}.key" }
 
 # :certificate_path is the top-level directory for certs/keys.
 # If create_subfolders is true then
@@ -104,26 +104,27 @@ property :create_subfolders, [TrueClass, FalseClass], default: case node['platfo
 property :owner, String, default: 'root'
 property :group, String, default: 'root'
 
+
+# Accesors for determining where files should be placed
+def certificate
+  bits = [certificate_path, certificate_filename]
+  bits.insert(1, 'certs') if create_subfolders
+  ::File.join(bits)
+end
+
+def chain
+  bits = [certificate_path, chain_filename]
+  bits.insert(1, 'certs') if create_subfolders
+  ::File.join(bits)
+end
+
+def key
+  bits = [certificate_path, key_filename]
+  bits.insert(1, 'private') if create_subfolders
+  ::File.join(bits)
+end
+
 action_class do
-  # Accesors for determining where files should be placed
-  def certificate
-    bits = [new_resource.certificate_path, new_resource.certificate_filename]
-    bits.insert(1, 'certs') if new_resource.create_subfolders
-    ::File.join(bits)
-  end
-
-  def key
-    bits = [new_resource.certificate_path, new_resource.key_filename]
-    bits.insert(1, 'private') if new_resource.create_subfolders
-    ::File.join(bits)
-  end
-
-  def chain
-    bits = [new_resource.certificate_path, new_resource.chain_filename]
-    bits.insert(1, 'certs') if new_resource.create_subfolders
-    ::File.join(bits)
-  end
-
   def cert_directory_resource(dir, private = false)
     directory ::File.join(new_resource.certificate_path, dir) do
       owner new_resource.owner
@@ -148,8 +149,8 @@ action :create do
   ssl_item = begin
     vault_client = Vault::Client.new(address: new_resource.address, token: new_resource.token)
     data = if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
-      Chef::Log.warn("vault-certificate: in a static environment. Static Path: '#{static_path}'")
-      result = vault_client.logical.read(static_path)
+      Chef::Log.warn("vault-certificate: in a static environment. Static Path: '#{new_resource.static_path}'")
+      result = vault_client.logical.read(new_resource.static_path)
       Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.static_path}'") if result.nil?
       result.data
     else

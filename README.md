@@ -28,7 +28,10 @@ Tested on:
 
 This resource is able to fetch ssl certificates, their corresponding chain and private key from HashiCorp Vault.
 
-Using the default settings the following usage:
+Using the default settings, the following usage fetches the certificate from Vault:
+
+- On path `secret/example-service/production/common/certificates/example-service.example.com`, if the node is in a **static** environment (for example, if we are in `production`)
+- With `pki/issue/example-dot-com common_name=example-service.example.com`, if the node is in a **dynamic** environment
 
 ```ruby
 vault_certificate 'example-service.example.com' do
@@ -39,11 +42,6 @@ vault_certificate 'example-service.example.com' do
   token 'efad6fc1-bf37-7a10-fb78-67ae8756c219'
 end
 ```
-
-1) If the node is in a **static** environment (lets assume we are in `production`) the certificate will be fetched from Vault on the path:
-  ```secret/example-service/production/common/certificates/example-service.example.com```
-2) If the node is in a **dynamic** environment the certificate will be fetched from Vault with:
-  ```pki/issue/example-dot-com common_name=example-service.example.com```
 
 #### .certificate, .key, .chain helper method usage
 
@@ -87,16 +85,16 @@ server {
 ```
   
 #### What constitutes a static/dynamic environment?
-`vault_certificate` has a property called `static_environments`, which is an array of regexes, if `environment` matches
-any of those regexes then the node is considered to be in a static environment otherwise it is considered to
+`vault_certificate` has a property called `static_environments` which is an array of regexes. If `environment` matches
+any of those regexes then the node is considered to be in a static environment. Otherwise it is considered to
 be in a dynamic environment.
 
 #### How can I change/customize the paths?
-You can either set `static_path` and/or `dynamic_path` and `dynamic_options` directly. Or you can use any of the other
-properties to customize the path. For example if you set `static_mountpoint` to `base-services-secrets` then the path
-for the static environments would be:
+You can either set `static_path` and/or `dynamic_path` and `dynamic_options` directly. Alternately, you can use any of 
+the other properties to customize the path. For example if you set `static_mountpoint` to `base-services-secrets` then 
+the path for the static environments would be:
 
-  ```base-services-secrets/example-service/production/common/certificates/example-service.example.com```
+  `base-services-secrets/example-service/production/common/certificates/example-service.example.com`
 
 See the list of properties bellow.
 

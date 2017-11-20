@@ -1,5 +1,4 @@
-Vault Certificate cookbook
-==========================
+# Vault Certificate cookbook [![license](https://img.shields.io/badge/license-Apache%20v2-blue.svg)](LICENSE)
 
 [![Build Status](https://travis-ci.org/ist-dsi/cookbook-vault-certificate.svg?branch=master)](https://travis-ci.org/ist-dsi/cookbook-vault-certificate)
 
@@ -45,9 +44,9 @@ end
 
 Some helper methods are exposed for retrieving key/certificate paths in other recipes:
 
-  - `.certificate` - The final path of the certificate file. For example using the defaults and on CentOS: `/etc/tls/certs/example-service.example.com.pem`.
-  - `.key` - The final path of the key file. For example using the defaults and on CentOS: `/etc/tls/private/example-service.example.com.key`
-  - `.chain` - The final path of the chain file. For example using the defaults and on CentOS: `/etc/tls/certs/example-service.example.com-bundle.pem`
+  - `.certificate` - The final path of the certificate file. For example using the defaults and on CentOS: `/etc/pki/tls/certs/example-service.example.com.pem`.
+  - `.key` - The final path of the key file. For example using the defaults and on CentOS: `/etc/pki/tls/private/example-service.example.com.key`
+  - `.chain` - The final path of the chain file. For example using the defaults and on CentOS: `/etc/pki/tls/certs/example-service.example.com-bundle.pem`
 
 ```ruby
 cert = vault_certificate 'example-service.example.com' do
@@ -139,7 +138,7 @@ See the list of properties bellow.
 
   - `ssl_path` - directory where the certificates, chains, and keys will be stored. The final path might be different depending on `create_subfolders`.
                  The default is SO dependent, see [attributes](attributes/defaults.rb) for the final value.
-  - `create_subfolders` - whether to create 'certs' and 'private' sub-folders inside `ssl_path`.
+  - `create_subfolders` - whether to create `certs` and `private` sub-folders inside `ssl_path`.
                           The default is SO dependent, see [attributes](attributes/defaults.rb) for the final value.
   - `certificate_filename` - filename of the certificate. Default: `"#{certificate_common_name}.pem"`.
   - `chain_filename` - filename of the CA chain bundle. Default: `"#{certificate_common_name}-bundle.crt"`.
@@ -168,3 +167,6 @@ end
 ```
 
 See the [attributes file](attributes/defaults.rb) for a full list of supported attributes.
+
+## License
+vault_certificate is open source and available under the [Apache v2 license](LICENSE).

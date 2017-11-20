@@ -24,13 +24,45 @@ Tested on:
 
 This resource is able to fetch ssl certificates, their corresponding chain and private key from HashiCorp Vault.
 
+Using the default settings the following usage:
+
+```ruby
+vault_certificate 'example-service.example.com' do
+  service_name 'example-service'
+  pki_role 'example-dot-com'
+  
+  address 'https://my-vault.example.com'
+  token 'efad6fc1-bf37-7a10-fb78-67ae8756c219'
+end
+
+```
+
+1) If the node is in a **static** environment (lets assume we are in `production`) the certificate will be fetched from Vault on the path:
+  ```secret/example-service/production/common/certificates/example-service.example.com```
+2) If the node is in a **dynamic** environment the certificate will be fetched from Vault with:
+  ```pki/issue/example-dot-com common_name=example-service.example.com```
+  
+#### What constitutes a static/dynamic environment?
+`vault_certificate` has a property called `static_environments`, which is an array of regexes, if `environment` matches
+any of those regexes then the node is considered to be in a static environment otherwise it is considered to
+be in a dynamic environment.
+
+#### How can I change/customize the paths?
+Who can either set `static_path` and/or `dynamic_path` and `dynamic_options` directly. Or you can use any of the other
+properties to customize the path. For example if you set `static_mountpoint` to `base-services-secrets` then the path
+for the static environments would be:
+
+  ```base-services-secrets/example-service/production/common/certificates/example-service.example.com```
+
+See the list of properties bellow.
+ 
 #### Service properties
 Property                      | Description                                                                                        | Example                                  | Default
 ----------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------
 certificate_common_name       | CN of the certificate.                                                                             | example-service.example.com              | Resource name
-service_name                  |                                                                                                    | example-service                          | Must be specified.
-environment                   |                                                                                                    | staging                                  | node.environment
-version                       |                                                                                                    | v1-2017-10-15                            | Empty string.
+service_name                  | the service name is like a namespace for the certificates.                                         | example-service                          | Must be specified.
+environment                   | the environment on which the node is being provisioned.                                            | production                               | node.environment
+version                       | the specific version of the service that is being provisioned. Only used when `use_common_path` is false. | v1-2017-10-15                            | Empty string.
 static_environments           | if environment matches any regex in `static_environment` then `static_path` will be used. Otherwise `dynamic_path` will be used. | [/staging-\d+/, /production | [/production/, /staging/]
 
 #### Vault properties
@@ -73,3 +105,24 @@ key_filename      | filename of the private key.                                
 owner             | owner of the subfolders, the certificate, the chain and the private key. | 'root'                                  | 'root'
 group             | group of the subfolders, the certificate, the chain and the private key. | 'root'                                  | 'root'
 
+## Attributes
+
+In order to promote code reuse most of the properties can be defined via an attribute. This allows, for example, to define
+the Vault `address` and `token` just once without the need to explicitly define it for every invocation of `vault_certificate`:
+
+```ruby
+node.normal['vault_certificate']['address'] = 'https://my-vault.my-domain.gtld'
+node.normal['vault_certificate']['token'] = '<my-token>'
+
+vault_certificate 'example-service.example.com' do
+  service_name 'example-service'
+  pki_role 'example-dot-com'
+end
+
+vault_certificate 'db.example-service.example.com' do
+  service_name 'example-service'
+  pki_role 'example-dot-com'
+end
+```
+
+See the [attributes file](attributes/defaults.rb) for a full list of supported attributes.

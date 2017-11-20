@@ -34,13 +34,53 @@ vault_certificate 'example-service.example.com' do
   address 'https://my-vault.example.com'
   token 'efad6fc1-bf37-7a10-fb78-67ae8756c219'
 end
-
 ```
 
 1) If the node is in a **static** environment (lets assume we are in `production`) the certificate will be fetched from Vault on the path:
   ```secret/example-service/production/common/certificates/example-service.example.com```
 2) If the node is in a **dynamic** environment the certificate will be fetched from Vault with:
   ```pki/issue/example-dot-com common_name=example-service.example.com```
+
+#### .certificate, .key, .chain helper method usage
+
+Some helper methods are exposed for retrieving key/certificate paths in other recipes:
+
+  - `.certificate` - The final path of the certificate file. For example using the defaults and on CentOS: `/etc/tls/certs/example-service.example.com.pem`.
+  - `.key` - The final path of the key file. For example using the defaults and on CentOS: `/etc/tls/private/example-service.example.com.key`
+  - `.chain` - The final path of the chain file. For example using the defaults and on CentOS: `/etc/tls/certs/example-service.example.com-bundle.pem`
+
+```ruby
+cert = vault_certificate 'example-service.example.com' do
+  service_name 'example-service'
+  pki_role 'example-dot-com'
+  combine_certificate_and_chain true # Because we will be using the certificate on Nginx.
+ 
+  address 'https://my-vault.example.com'
+  token 'efad6fc1-bf37-7a10-fb78-67ae8756c219'
+end
+
+
+nginx_site 'proxy' do
+  template 'proxy.erb'
+  variables(
+    'certificate' => cert
+  )
+  action :enable
+end
+```
+
+Then in `proxy.erb`:
+
+```
+server {
+  listen                443 ssl http2;
+  listen                [::]:443 ssl http2;
+  server_name           example-service.example.com;
+  
+  ssl_certificate       <%= @certificate.certificate %>;
+  ssl_certificate_key   <%= @certificate.key %>;
+}
+```
   
 #### What constitutes a static/dynamic environment?
 `vault_certificate` has a property called `static_environments`, which is an array of regexes, if `environment` matches
@@ -58,7 +98,7 @@ See the list of properties bellow.
 
 #### General properties
 
-  - `certificate_common_name` - CN of the certificate. No default, this must be specified.
+  - `certificate_common_name` - CN of the certificate. No default, **this must be specified**.
   - `environment` - the environment on which the node is being provisioned. Default: the chef environment.
   - `static_environments` - an array of regexes used to compute whether the node is being provisioned in a static or dynamic environment.
                             If `environment` matches any of the regexes then `static_path` will be used. Otherwise `dynamic_path` will be used.
@@ -67,31 +107,33 @@ See the list of properties bellow.
 #### Vault properties
 
   - `address` - the address of the Vault Server. Default: `http://127.0.0.1:8200`.
-  - `token` - the token used to authenticate against the Vault Server. No default, this must be specified.
+  - `token` - the token used to authenticate against the Vault Server. No default, **this must be specified**.
 
 #### Static environment properties
   
   - `static_mountpoint` - the Vault mountpoint used for static environments. Default: `secret`
   - `service_name` - the name of the service being provisioned. No default, this must be specified on static environments.
-  - `version` - the specific version of the service that is being provisioned. Only used when `use_common_path` is false. Default: empty string.
+  - `version` - the specific version of the service that is being provisioned. No default, this must be specified when `use_common_path` is false.
   - `common_path` - the path to use in `static_path` when `use_common_path` is set to true. Default: `common`.
   - `use_common_path` - whether to use `common_path` in `static_path`. Default: `true`.
   - `certificates_path` - the last path to use in `static_path`. This allows having multiple certificates for a single service. Default: `certificates`.
-  - `static_path` - the full path used to get the certificate from Vault in a static environments. Default: using the defaults it would be
-                    'secret/example-service/#{node.environment}/common/certificates/#{certificate_common_name}'
+  - `static_path` - the full path used to get the certificate from Vault in static environments. Default: using the defaults it would be
+                    `secret/example-service/#{node.environment}/common/certificates/#{certificate_common_name}`.
 
 #### Dynamic environment properties
                     
-  - `dynamic_mountpoint` - the Vault mountpoint used for dynamic environments. Default: 'pki/issue'.
+  - `dynamic_mountpoint` - the Vault mountpoint used for dynamic environments. Default: `pki/issue`.
   - `pki_role` - the role used in Vault pki to generate new certificates. No default, this must be specified on dynamic environments.
-  - `dynamic_path` - the full path used to get the certificate from Vault in a dynamic environment. Default: using the defaults it would be
-                     'pki/issue/#{pki_role}'
+  - `dynamic_path` - the full path used to get the certificate from Vault in dynamic environments. Default: using the defaults it would be
+                     `pki/issue/#{pki_role}`.
   - `dynamic_options` - the options to pass to the pki Vault backend. Default: `{ common_name: "#{certificate_common_name}" }`.
 
 #### Certificate bundles properties
 
-  - `combine_certificate_and_chain` - whether to combine the certificate and the CA trust chain in a single file in that order. Useful to use in Nginx. Default: `false`.
-  - `combine_all` - whether to combine the certificate, the CA trust chain, and the private key in a single file in that order. Useful to use in HAProxy. Default: `false`.
+  - `combine_certificate_and_chain` - whether to combine the certificate and the CA trust chain in a single file in that
+                                      order. Useful to use in Nginx. Default: `false`.
+  - `combine_all` - whether to combine the certificate, the CA trust chain, and the private key in a single file in that
+                    order. Useful to use in HAProxy. Default: `false`.
 
 #### Filesystem properties
 

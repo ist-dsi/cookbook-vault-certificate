@@ -4,6 +4,11 @@
 
 Chef library cookbook to manage SSL certificates fetched from HashiCorp Vault.
 
+### Requirements
+
+Your Vault server must have a [key-value](https://www.vaultproject.io/docs/secrets/kv/index.html) and a
+[pki](https://www.vaultproject.io/docs/secrets/pki/index.html) backend configured.
+
 ### Platforms
 
 Tested on:

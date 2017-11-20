@@ -7,23 +7,22 @@ require 'vault'
 default_action :create
 
 property :certificate_common_name, String, name_property: true, required: true
-property :service_name, String, default: lazy { node['vault_certificate']['service_name'] }, required: true, callbacks: {
-  'service_name cannot be empty' => ->(p) { !p.empty? },
-}
 property :environment, String, default: lazy { node['vault_certificate']['environment'] }, required: true
-property :version, String, default: lazy { node['vault_certificate']['version'] }, required: true
+# The list of environments for which the static path will be used to retrieve the Certificate from Vault.
+# This is an array of regexes. If any regex matches then the static path will be used.
+property :static_environments, Array, default: lazy { node['vault_certificate']['static_environments'] }
 
 # The address of the Vault Server.
 property :address, String, default: lazy { node['vault_certificate']['address'] }, required: true
 # The token used to authenticate against the Vault Server
 property :token, String, default: lazy { node['vault_certificate']['token'] }, required: true
 
-# The list of environments for which the static path will be used to retrieve the Certificate from Vault.
-# This is an array of regexes. If any regex matches then the static path will be used.
-property :static_environments, Array, default: lazy { node['vault_certificate']['static_environments'] }
-
 # The Vault mountpoint used for static environments. By default 'secret'.
 property :static_mountpoint, String, default: lazy { node['vault_certificate']['static_mountpoint'] }, required: true
+# The name of the service being provisioned.
+property :service_name, String, default: lazy { node['vault_certificate']['service_name'] }, required: true
+# The specific version of the service that is being provisioned. Only used when `use_common_path` is false.
+property :version, String, default: lazy { node['vault_certificate']['version'] }, required: true
 # The path to use in :static_path when :use_common_path is set to true. By default 'common'.
 property :common_path, String, default: lazy { node['vault_certificate']['common_path'] }, required: true
 # Whether to use :common_path in :static_path. By default true.

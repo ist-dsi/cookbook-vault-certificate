@@ -48,62 +48,62 @@ any of those regexes then the node is considered to be in a static environment o
 be in a dynamic environment.
 
 #### How can I change/customize the paths?
-Who can either set `static_path` and/or `dynamic_path` and `dynamic_options` directly. Or you can use any of the other
+You can either set `static_path` and/or `dynamic_path` and `dynamic_options` directly. Or you can use any of the other
 properties to customize the path. For example if you set `static_mountpoint` to `base-services-secrets` then the path
 for the static environments would be:
 
   ```base-services-secrets/example-service/production/common/certificates/example-service.example.com```
 
 See the list of properties bellow.
- 
-#### Service properties
-Property                      | Description                                                                                        | Example                                  | Default
------------------------------ | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ---------------------
-certificate_common_name       | CN of the certificate.                                                                             | example-service.example.com              | Resource name
-service_name                  | the service name is like a namespace for the certificates.                                         | example-service                          | Must be specified.
-environment                   | the environment on which the node is being provisioned.                                            | production                               | node.environment
-version                       | the specific version of the service that is being provisioned. Only used when `use_common_path` is false. | v1-2017-10-15                            | Empty string.
-static_environments           | if environment matches any regex in `static_environment` then `static_path` will be used. Otherwise `dynamic_path` will be used. | [/staging-\d+/, /production | [/production/, /staging/]
+
+#### General properties
+
+  - `certificate_common_name` - CN of the certificate. No default, this must be specified.
+  - `environment` - the environment on which the node is being provisioned. Default: the chef environment.
+  - `static_environments` - an array of regexes used to compute whether the node is being provisioned in a static or dynamic environment.
+                            If `environment` matches any of the regexes then `static_path` will be used. Otherwise `dynamic_path` will be used.
+                            Default: `[/production/, /staging/]`.
 
 #### Vault properties
-Property | Description                                              | Example                                  | Default
----------| ---------------------------------------------------------| ---------------------------------------- | ---------------------
-address  | the address of the Vault Server                          | https://my-vault.example.com             | http://127.0.0.1:8200
-token    | the token used to authenticate against the Vault Server. | efad6fc1-bf37-7a10-fb78-67ae8756c219     | nil
+
+  - `address` - the address of the Vault Server. Default: `http://127.0.0.1:8200`.
+  - `token` - the token used to authenticate against the Vault Server. No default, this must be specified.
 
 #### Static environment properties
-Property          | Description                                                                                           | Example   | Default
------------------ | ----------------------------------------------------------------------------------------------------- | --------- | ---------------------
-static_mountpoint | the Vault mountpoint used for static environments.                                                    | 'secret'  | 'secret'
-common_path       | the path to use in `static_path` when `use_common_path` is set to true.                               | 'common'  | 'common'
-use_common_path   | whether to use `common_path` in `static_path`.                                                        | true      | true
-certificates_path | the last path to use in `static_path`. This allows having multiple certificates for a single service. | 'certs'   | 'certificates'
-static_path       | the full path used to get the certificate from Vault.                       | 'secret/example-service/staging/common/certificates/example-service.example.com' | Explained below.
+  
+  - `static_mountpoint` - the Vault mountpoint used for static environments. Default: `secret`
+  - `service_name` - the name of the service being provisioned. No default, this must be specified on static environments.
+  - `version` - the specific version of the service that is being provisioned. Only used when `use_common_path` is false. Default: empty string.
+  - `common_path` - the path to use in `static_path` when `use_common_path` is set to true. Default: `common`.
+  - `use_common_path` - whether to use `common_path` in `static_path`. Default: `true`.
+  - `certificates_path` - the last path to use in `static_path`. This allows having multiple certificates for a single service. Default: `certificates`.
+  - `static_path` - the full path used to get the certificate from Vault in a static environments. Default: using the defaults it would be
+                    'secret/example-service/#{node.environment}/common/certificates/#{certificate_common_name}'
 
 #### Dynamic environment properties
-Property           | Description                                              | Example                     | Default
------------------- | -------------------------------------------------------- | --------------------------- | ---------------------
-dynamic_mountpoint | the Vault mountpoint used for dynamic environments.      | 'pki/issue'                 | 'pki/issue'
-pki_role           | the role used in Vault pki to generate new certificates. | 'example-dot-com'           | nil. On dynamic environments it must be specified.
-dynamic_path       | the full path used to get the certificate from Vault.    | 'pki/issue/example-dot-com' | Explained below.
-dynamic_options    | the options to pass to the pki Vault backend.            | `{ common_name: "#{certificate_common_name}", private_key_format: 'pkcs8' }` | `{ common_name: "#{certificate_common_name}" }`
+                    
+  - `dynamic_mountpoint` - the Vault mountpoint used for dynamic environments. Default: 'pki/issue'.
+  - `pki_role` - the role used in Vault pki to generate new certificates. No default, this must be specified on dynamic environments.
+  - `dynamic_path` - the full path used to get the certificate from Vault in a dynamic environment. Default: using the defaults it would be
+                     'pki/issue/#{pki_role}'
+  - `dynamic_options` - the options to pass to the pki Vault backend. Default: `{ common_name: "#{certificate_common_name}" }`.
 
 #### Certificate bundles properties
-Property                      | Description                                                                                                                           | Example | Default
------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------- | ------- | ---------------------
-combine_certificate_and_chain | whether to combine the certificate and the CA trust chain in a single file in that order. Useful to use in Nginx.                     | true    | false
-combine_all                   | whether to combine the certificate, the CA trust chain, and the private key in a single file in that order. Useful to use in HAProxy. | true    | false
+
+  - `combine_certificate_and_chain` - whether to combine the certificate and the CA trust chain in a single file in that order. Useful to use in Nginx. Default: `false`.
+  - `combine_all` - whether to combine the certificate, the CA trust chain, and the private key in a single file in that order. Useful to use in HAProxy. Default: `false`.
 
 #### Filesystem properties
-Property          | Description                                                              | Example                                 | Default
------------------ | ------------------------------------------------------------------------ | --------------------------------------- | ---------------------
-ssl_path          | directory where the certificates, chains, and keys will be stored.       | '/etc/pki/tls'                          | The default value is SO dependent.
-create_subfolders | whether to create 'certs' and 'private' sub-folders inside `ssl_path`.   | true                                    | The default value is SO dependent.
-certificate_file  | filename of the certificate.                                             | "#{certificate_common_name}.pem"        | "#{certificate_common_name}.pem"
-chain_filename    | filename of the CA chain bundle.                                         | "#{certificate_common_name}-bundle.crt" | "#{certificate_common_name}-bundle.crt"
-key_filename      | filename of the private key.                                             | "#{certificate_common_name}.key"        | "#{certificate_common_name}.key"
-owner             | owner of the subfolders, the certificate, the chain and the private key. | 'root'                                  | 'root'
-group             | group of the subfolders, the certificate, the chain and the private key. | 'root'                                  | 'root'
+
+  - `ssl_path` - directory where the certificates, chains, and keys will be stored. The final path might be different depending on `create_subfolders`.
+                 The default is SO dependent, see [attributes](attributes/defaults.rb) for the final value.
+  - `create_subfolders` - whether to create 'certs' and 'private' sub-folders inside `ssl_path`.
+                          The default is SO dependent, see [attributes](attributes/defaults.rb) for the final value.
+  - `certificate_filename` - filename of the certificate. Default: `"#{certificate_common_name}.pem"`.
+  - `chain_filename` - filename of the CA chain bundle. Default: `"#{certificate_common_name}-bundle.crt"`.
+  - `key_filename` - filename of the private key. Default: `"#{certificate_common_name}.key"`.
+  - `owner` - owner of the subfolders, the certificate, the chain and the private key. Default: `root`.
+  - `group` - group of the subfolders, the certificate, the chain and the private key. Default: `root`.
 
 ## Attributes
 

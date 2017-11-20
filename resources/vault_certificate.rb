@@ -7,6 +7,7 @@ require 'vault'
 default_action :create
 
 property :certificate_common_name, String, name_property: true, required: true
+# The environment on which the node is being provisioned.
 property :environment, String, default: lazy { node['vault_certificate']['environment'] }, required: true
 # The list of environments for which the static path will be used to retrieve the Certificate from Vault.
 # This is an array of regexes. If any regex matches then the static path will be used.

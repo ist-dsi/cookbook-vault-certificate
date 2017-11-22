@@ -6,10 +6,6 @@ default['vault_certificate'] = {
   'static_environments' => [/production/, /staging/],
   # The service version
   'version' => '',
-  # The address of the Vault Server.
-  'address' => 'http://127.0.0.1:8200',
-  # The token used to authenticate against the Vault Server
-  'token' => nil,
   # The Vault mountpoint used for static environments.
   'static_mountpoint' => 'secret',
   # The service name

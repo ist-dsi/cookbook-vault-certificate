@@ -10,11 +10,13 @@ license 'Apache-2.0'
 
 description 'Installs/Configures certificates, private keys, CA root bundles from Hashicorp Vault.'
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
-version '0.1.0'
+version '0.2.0'
 chef_version '>= 12.8' # We need 12.8 to be able to use gem in metadata.rb
 
-%w( centos debian ).each do |os|
+%w( centos debian ubuntu fedora ).each do |os|
   supports os
 end
+
+provides 'vault_certificate'
 
 gem 'vault'

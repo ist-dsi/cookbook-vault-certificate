@@ -1,23 +1,32 @@
 resource_name :vault_certificate
 
 require 'vault'
-
-# TODO: it would be nice to support PCKS11
+require 'openssl'
 
 default_action :create
 
+# ======================================================================================================================
+# == General properties ================================================================================================
+# ======================================================================================================================
+# CN of the certificate.
 property :certificate_common_name, String, name_property: true, required: true
 # The environment on which the node is being provisioned.
 property :environment, String, default: lazy { node['vault_certificate']['environment'] }, required: true
-# The list of environments for which the static path will be used to retrieve the Certificate from Vault.
-# This is an array of regexes. If any regex matches then the static path will be used.
+# An array of regexes used to compute whether the node is being provisioned in a static or dynamic environment.
+# If `environment` matches any of the regexes then `static_path` will be used. Otherwise `dynamic_path` will be used.
 property :static_environments, Array, default: lazy { node['vault_certificate']['static_environments'] }
 
+# ======================================================================================================================
+# == Vault properties ==================================================================================================
+# ======================================================================================================================
 # The address of the Vault Server.
-property :address, String, default: lazy { node['vault_certificate']['address'] }, required: true
+property :address, String, default: lazy { node['vault_certificate']['address'] }
 # The token used to authenticate against the Vault Server
-property :token, String, default: lazy { node['vault_certificate']['token'] }, required: true
+property :token, String, default: lazy { node['vault_certificate']['token'] }
 
+# ======================================================================================================================
+# == Static environment properties =====================================================================================
+# ======================================================================================================================
 # The Vault mountpoint used for static environments. By default 'secret'.
 property :static_mountpoint, String, default: lazy { node['vault_certificate']['static_mountpoint'] }, required: true
 # The name of the service being provisioned.
@@ -47,6 +56,9 @@ property :static_path, String, default: lazy {
   end
 }, required: true
 
+# ======================================================================================================================
+# == Dynamic environment properties ====================================================================================
+# ======================================================================================================================
 # The Vault mountpoint used for dynamic environments. By default 'pki/issue'
 property :dynamic_mountpoint, String, default: lazy { node['vault_certificate']['dynamic_mountpoint'] }, required: true
 # The role used in vault pki to generate new certificates.
@@ -61,11 +73,17 @@ property :dynamic_options, Hash, default: lazy {
   { common_name: certificate_common_name }
 }, required: true
 
+# ======================================================================================================================
+# == Certificate bundles properties ====================================================================================
+# ======================================================================================================================
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
 property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
 # If true .certificate will point to a PEM file which contains the certificate, the CA trust chain, and the private key in that order.
 property :combine_all, [TrueClass, FalseClass], default: false
 
+# ======================================================================================================================
+# == Filesystem properties =============================================================================================
+# ======================================================================================================================
 # The top-level directory in the filesystem where the certificates, chains, and keys will be stored. The default value is SO dependent.
 # If create_subfolders is true then
 #   certificates and chains will be created inside #{certificate_path}/certs
@@ -73,23 +91,23 @@ property :combine_all, [TrueClass, FalseClass], default: false
 # Otherwise
 #   certificates, chains and private keys will be created directly inside certificate_path.
 property :ssl_path, String, default: lazy { node['vault_certificate']['ssl_path'] }, required: true
-
 # Whether to create 'certs' and 'private' sub-folders inside `certificate_path`. The default value is SO dependent.
 property :create_subfolders, [TrueClass, FalseClass], default: lazy { node['vault_certificate']['create_subfolders'] }, required: true
-
 # The filename the managed certificate will have on the filesystem. By default "#{certificate_common_name}.pem"
 property :certificate_filename, String, default: lazy { "#{certificate_common_name}.pem" }
 # The filename the managed CA chain bundle will have on the filesystem. By default "#{certificate_common_name}-bundle.crt"
 property :chain_filename, String, default: lazy { "#{certificate_common_name}-bundle.crt" }
 # The filename the managed private key will have on the filesystem. By default "#{certificate_common_name}.key"
 property :key_filename, String, default: lazy { "#{certificate_common_name}.key" }
-
 # The owner of the subfolders, the certificate, the chain and the private key. By default 'root'.
 property :owner, String, default: lazy { node['vault_certificate']['owner'] }, required: true
 # The group of the subfolders, the certificate, the chain and the private key. By default 'root'.
 property :group, String, default: lazy { node['vault_certificate']['group'] }, required: true
 
-# Accesors for determining where files should be placed
+
+# ======================================================================================================================
+# == Accesors ==========================================================================================================
+# ======================================================================================================================
 def certificate
   bits = [ssl_path, certificate_filename]
   bits.insert(1, 'certs') if create_subfolders
@@ -108,6 +126,9 @@ def key
   ::File.join(bits)
 end
 
+# ======================================================================================================================
+# == Shared methods ====================================================================================================
+# ======================================================================================================================
 action_class do
   def cert_directory_resource(dir, private = false)
     directory ::File.join(new_resource.ssl_path, dir) do
@@ -129,21 +150,25 @@ action_class do
   end
 end
 
+# ======================================================================================================================
+# == Implementation ====================================================================================================
+# ======================================================================================================================
 action :create do
   ssl_item = begin
-    vault_client = Vault::Client.new(address: new_resource.address, token: new_resource.token)
+    Vault.address = new_resource.address unless new_resource.address.nil?
+    Vault.token = new_resource.token unless new_resource.token.nil?
     if new_resource.static_environments.count { |r| r.match(new_resource.environment) } > 0
       Chef::Log.debug("vault-certificate: in a static environment. Static Path: '#{new_resource.static_path}'")
-      result = vault_client.logical.read(new_resource.static_path)
+      result = Vault.logical.read(new_resource.static_path)
       Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.static_path}'") if result.nil?
     else
       Chef::Log.debug("vault-certificate: in a dynamic environment. Dynamic Path: '#{new_resource.dynamic_path}'. Dynamic Options: #{new_resource.dynamic_options}")
-      result = vault_client.logical.write(new_resource.dynamic_path, new_resource.dynamic_options)
+      result = Vault.logical.write(new_resource.dynamic_path, new_resource.dynamic_options)
       Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.dynamic_path}' and options #{new_resource.dynamic_options}") if result.nil?
     end
     {
       certificate: result.data[:certificate],
-      chain: result.data[:ca_chain].nil? ? result.data[:issuing_ca] : result.data[:ca_chain].join('\n'),
+      ca_chain: result.data[:ca_chain].nil? ? result.data[:issuing_ca] : result.data[:ca_chain].join('\n'),
       private_key: result.data[:private_key],
     }
   rescue => e
@@ -151,7 +176,7 @@ action :create do
   end
 
   Chef::Application.fatal!('Could not get certificate from Vault') if ssl_item[:certificate].nil?
-  Chef::Application.fatal!('Could not get chain from Vault') if ssl_item[:chain].nil?
+  Chef::Application.fatal!('Could not get chain from Vault') if ssl_item[:ca_chain].nil?
   Chef::Application.fatal!('Could not get private_key from Vault') if ssl_item[:private_key].nil?
 
   if new_resource.create_subfolders
@@ -161,14 +186,14 @@ action :create do
 
   if new_resource.combine_all
     certificate_file_resource certificate,
-                       "#{ssl_item[:certificate]}\n#{ssl_item[:chain]}\n#{ssl_item[:private_key]}",
+                       "#{ssl_item[:certificate]}\n#{ssl_item[:ca_chain]}\n#{ssl_item[:private_key]}",
                        true
   else
     if new_resource.combine_certificate_and_chain
-      certificate_file_resource certificate, "#{ssl_item[:certificate]}\n#{ssl_item[:chain]}"
+      certificate_file_resource certificate, "#{ssl_item[:certificate]}\n#{ssl_item[:ca_chain]}"
     else
       certificate_file_resource certificate, ssl_item[:certificate]
-      certificate_file_resource chain, ssl_item[:chain]
+      certificate_file_resource chain, ssl_item[:ca_chain]
     end
     certificate_file_resource key, ssl_item[:private_key], true
   end

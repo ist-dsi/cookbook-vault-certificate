@@ -14,6 +14,8 @@ default['vault_certificate'] = {
   'common_path' => 'common',
   # Whether to use vault_common_path in the path for static environments.
   'use_common_path' => true,
+  # The cipher that will be used to encrypt the key when :encrypt_key is true.
+  'key_encryption_cipher' => 'AES-256-CBC',
   # The last path to use in the path for static environments.
   'certificates_path' => 'certificates',
   # The Vault mountpoint used for dynamic environments.

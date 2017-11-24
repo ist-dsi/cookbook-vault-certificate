@@ -137,6 +137,23 @@ See the list of properties bellow.
   - `combine_all` - whether to combine the certificate, the CA trust chain, and the private key in a single file in that
                     order. Useful to use in HAProxy. Default: `false`.
 
+#### Stores (PKCS12 and Java) properties
+  
+  - `store_path` - the top-level directory where stores will be created.
+  - `store_password` - the password used to protected the store.
+  - `key_encryption_password` - the password used to encrypt the key inside the store.
+                                If not set, set to nil or set to empty string the key will not be encrypted.
+  - `key_encryption_cipher` - the cipher used to encrypt the key.
+  - `keystore_password` - the password for the keystore. By default the same as store_password.
+                          Having a separate property for the keystore password allows having different passwords for the
+                          keystore and the truststore when using the action create_key_and_trust_stores.
+  - `keystore_filename` - the filename the keystore will have on the filesystem. Default "#{certificate_common_name}.keystore.jks".
+  - `truststore_password` - the password for the truststore. By default the same as store_password.
+                            H**aving a separate property for the truststore password allows having different passwords for the
+                            keystore and the truststore when using the action create_key_and_trust_stores.
+  - `truststore_filename` - the filename the truststore will have on the filesystem. Default "#{certificate_common_name}.truststore.jks".
+  - `pkcs12store_filename` - the filename the pkcs12 store will have on the filesystem. By default "#{certificate_common_name}.pkcs12".
+
 #### Filesystem properties
 
   - `ssl_path` - directory where the certificates, chains, and keys will be stored. The final path might be different depending on `create_subfolders`.
@@ -170,6 +187,14 @@ end
 ```
 
 See the [attributes file](attributes/defaults.rb) for a full list of supported attributes.
+
+## Actions
+
+  - `create` - the default action. Creates the certificate, private key and chain.
+  - `create_pkcs12_store` - creates a PKCS12 store on `store_path` and `store_password`.
+  - `create_keystore` - creates a Java keystore using `keytool` (you must have it installed if you have java installed it will be installed).
+  - `create_truststore` - creates a Java truststore using `keytool` (you must have it installed if you have java installed it will be installed).
+  - `create_key_and_trust_stores` - creates a Java keystore and a truststore in one go. It is more efficient since it just makes a request to Vault.
 
 ## License
 vault_certificate is open source and available under the [Apache v2 license](LICENSE).

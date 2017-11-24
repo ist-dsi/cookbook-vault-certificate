@@ -7,7 +7,6 @@ driver:
     net: bridge
   # dockerfile: test/dockerfile
 
-# Preparing for Chef 13
 client_rb:
   treat_deprecation_warnings_as_errors: true
   resource_cloning: false
@@ -21,14 +20,18 @@ platforms:
 suites:
   - name: dynamic
     run_list:
+      - recipe[java] # We need java to generate key/trust stores
       - recipe[test::default]
     attributes:
       vault_certificate:
         address: "http://dev-vault:8200/"
         token: <%= ENV['VAULT_TOKEN'] %>
         pki_role: "example-com"
+      java:
+        jdk_version: 8
   - name: static
     run_list:
+      - recipe[java] # We need java to generate key/trust stores
       - recipe[test::default]
     provisioner:
       name: chef_zero
@@ -39,3 +42,5 @@ suites:
       vault_certificate:
         address: "http://dev-vault:8200/"
         token: <%= ENV['VAULT_TOKEN'] %>
+      java:
+        jdk_version: 8

@@ -32,14 +32,14 @@ property :static_mountpoint, String, default: lazy { node['vault_certificate']['
 # The name of the service being provisioned.
 property :service_name, String, default: lazy { node['vault_certificate']['service_name'] }, required: true
 # The specific version of the service that is being provisioned. Only used when `use_common_path` is false.
-property :version, String, default: lazy { node['vault_certificate']['version'] }, required: true
+property :service_version, String, default: lazy { node['vault_certificate']['service_version'] }, required: true
 # The path to use in :static_path when :use_common_path is set to true. By default 'common'.
 property :common_path, String, default: lazy { node['vault_certificate']['common_path'] }, required: true
 # Whether to use :common_path in :static_path. By default true.
 # If true the :static_path by default would be:
 #   "secret/#{service_name}/#{environment}/common/certificates/#{certificate_common_name}"
 # Otherwise
-#   "secret/#{service_name}/#{environment}/#{version}/certificates/#{certificate_common_name}"
+#   "secret/#{service_name}/#{environment}/#{service_version}/certificates/#{certificate_common_name}"
 property :use_common_path, equal_to: [true, false], default: lazy { node['vault_certificate']['use_common_path'] }, required: true
 # The last path to use in :static_path. By default 'certificates'.
 property :certificates_path, String, default: lazy { node['vault_certificate']['certificates_path'] }, required: true
@@ -51,8 +51,8 @@ property :static_path, String, default: lazy {
   if use_common_path
     "#{start}/#{common_path}/#{finish}"
   else
-    Chef::Application.fatal!("When use_common_path is false, version must be specified! Got version = '#{version}'.") if version.empty?
-    "#{start}/#{version}/#{finish}"
+    Chef::Application.fatal!("When use_common_path is false, service_version must be specified! Got service_version = '#{service_version}'.") if service_version.empty?
+    "#{start}/#{service_version}/#{finish}"
   end
 }, required: true
 

@@ -1,7 +1,7 @@
 node.normal['vault_certificate']['service_name'] = 'example-service'
 
 vault_certificate 'test-with-version.example.com' do
-  version 'v1-2017-11-05'
+  service_version 'v1-2017-11-05'
   use_common_path false
 end
 

@@ -5,7 +5,7 @@ default['vault_certificate'] = {
   # This is an array of regexes. If any regex matches then the static path will be used.
   'static_environments' => [/production/, /staging/],
   # The service version
-  'version' => '',
+  'service_version' => '',
   # The Vault mountpoint used for static environments.
   'static_mountpoint' => 'secret',
   # The service name

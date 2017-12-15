@@ -20,4 +20,3 @@ end
 provides 'vault_certificate'
 
 gem 'vault'
-#gem 'openssl'

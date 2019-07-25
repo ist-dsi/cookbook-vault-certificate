@@ -331,7 +331,7 @@ action :create do
     cert_directory_resource 'private', true
   end
 
-  chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join('\n')
+  chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join("\n")
   if new_resource.combine_all
     certificate_file_resource certificate,
                         "#{ssl_item[:certificate]}\n#{chain_certs}\n#{ssl_item[:private_key]}",

@@ -13,16 +13,28 @@ addons:
     packages:
       - chefdk
 
+# Don't `bundle install` which takes about 1.5 mins
 install: echo "skip bundle install"
+
+env:
+  matrix:
+  - INSTANCE=debian
+  - INSTANCE=centos
+  - INSTANCE=ubuntu
 
 before_script:
   - sudo iptables -L DOCKER || ( echo "DOCKER iptables chain missing" ; sudo iptables -N DOCKER )
+  - export CHEF_LICENSE="accept-no-persist"
   - eval "$(chef shell-init bash)"
   - chef gem install kitchen-docker
   - source setupVault.sh
   - echo $VAULT_TOKEN
   
-script:
-  - foodcritic -f any .
-  - cookstyle -D
-  - kitchen converge all
+script: kitchen verify ${INSTANCE}
+
+matrix:
+  include:
+    - script:
+      - cookstyle -D
+      - foodcritic .
+      env: LINTING=1

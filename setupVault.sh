@@ -4,9 +4,9 @@ export VAULT_ADDR=http://localhost:8200
 docker pull vault
 docker stop $(docker inspect --format="{{.Id}}" dev-vault)
 docker rm $(docker inspect --format="{{.Id}}" dev-vault)
-docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d --name=dev-vault -p 8200:8200 vault
+export VAULT_TOKEN="d0ba0371-5a96-44cb-8ae1-97c54dd54957"
+docker run -e SKIP_SETCAP=true --cap-add IPC_LOCK -d -e "VAULT_DEV_ROOT_TOKEN_ID=$VAULT_TOKEN" --name=dev-vault -p 8200:8200 vault
 sleep 5
-export VAULT_TOKEN=`docker logs $(docker inspect --format="{{.Id}}" dev-vault) | grep --color=never -Po "(?<=Root Token: )([^\n]+)" | tail -n1`
 
 # ========================================================
 # == Mount and configure the pki backend =================
@@ -45,30 +45,10 @@ EOF
 # ========================================================
 curl --header "X-Vault-Token: $VAULT_TOKEN" \
      --data @- \
-    ${VAULT_ADDR}/v1/pki/roles/example-com <<EOF
+    ${VAULT_ADDR}/v1/pki/roles/my-role <<EOF
 {
   "allowed_domains": "example.com",
   "allow_subdomains": true,
   "max_ttl": "72h"
 }
 EOF
-
-# ========================================================
-# == Add the static certificates =========================
-# ========================================================
-curl --header "X-Vault-Token: $VAULT_TOKEN" \
-     --data-raw '{ "common_name": "test-with-version.example.com" }' \
-    ${VAULT_ADDR}/v1/pki/issue/example-com | jq '.data' > test-with-version.example.com.json
-curl --header "X-Vault-Token: $VAULT_TOKEN" \
-     --data @test-with-version.example.com.json \
-    ${VAULT_ADDR}/v1/secret/example-service/production/v1-2017-11-05/certificates/test-with-version.example.com
-rm test-with-version.example.com.json
-
-
-curl --header "X-Vault-Token: $VAULT_TOKEN" \
-     --data-raw '{ "common_name": "test-common.example.com" }' \
-    ${VAULT_ADDR}/v1/pki/issue/example-com | jq '.data' > test-common.example.com.json
-curl --header "X-Vault-Token: $VAULT_TOKEN" \
-     --data @test-common.example.com.json \
-    ${VAULT_ADDR}/v1/secret/example-service/production/common/certificates/test-common.example.com
-rm test-common.example.com.json

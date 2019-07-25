@@ -4,5 +4,5 @@ metadata
 
 group :development do
   cookbook 'test', path: 'test/cookbooks/test'
-  cookbook 'java', '~> 1.50.0'
+  cookbook 'java', '~> 4.2.0'
 end

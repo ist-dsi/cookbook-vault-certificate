@@ -105,7 +105,8 @@ end
 
 def bundle
   bits = [ssl_path, bundle_filename]
-  bits.insert(1, 'private') if create_subfolders
+  bits.insert(1, 'certs') if create_subfolders && combine_certificate_and_chain
+  bits.insert(1, 'private') if create_subfolders && combine_all
   ::File.join(bits)
 end
 
@@ -341,7 +342,7 @@ action :create do
   end
 
   chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join("\n")
-  bundle_content = ssl_item[:certificate] + chain_certs
+  bundle_content = ssl_item[:certificate] + chain_certs + "\n"
   if new_resource.combine_certificate_and_chain
     certificate_file_resource(bundle, bundle_content, !new_resource.output_certificates)
   end

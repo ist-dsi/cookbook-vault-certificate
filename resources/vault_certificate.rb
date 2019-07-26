@@ -322,7 +322,7 @@ action :create do
   # TODO: we should apply the same logic to the keystores
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
     cert_text = if new_resource.combine_all || new_resource.combine_certificate_and_chain
-                  bundle.partition(/(?<=-----END CERTIFICATE-----\n)/).first
+                  ::File.read(bundle).partition(/(?<=-----END CERTIFICATE-----\n)/).first
                 else
                   ::File.read(certificate)
                 end

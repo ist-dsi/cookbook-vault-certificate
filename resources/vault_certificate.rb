@@ -148,6 +148,10 @@ action_class do
     end
   end
 
+  def deep_copy(o)
+    Marshal.load(Marshal.dump(o))
+  end
+
   def fetch_certs_from_vault
     ssl_item = {}
     begin
@@ -159,7 +163,7 @@ action_class do
                  Vault.logical.write(new_resource.vault_path, new_resource.options)
                end
       Chef::Application.fatal!("[vault-certificate] Vault returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
-      ssl_item = result.data.clone()
+      ssl_item = deep_copy(result.data)
     rescue => e
       Chef::Application.fatal!(e.message)
     end

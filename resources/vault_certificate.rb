@@ -149,29 +149,28 @@ action_class do
   end
 
   def fetch_certs_from_vault
-    ssl_item = begin
-                 if new_resource.options.empty?
-                   Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
-                   result = Vault.logical.read(new_resource.static_path)
-                   Chef::Application.fatal!("[vault-certificate] #{new_resource.address} returned nil for path '#{new_resource.vault_path}'") if result.nil?
-                 else
-                   Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
-                   result = Vault.logical.write(new_resource.vault_path, new_resource.options)
-                   Chef::Application.fatal!("[vault-certificate] #{new_resource.address} returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
-                 end
-                 result.data
-               rescue => e
-                 Chef::Application.fatal!(e.message)
+    ssl_item = {}
+    begin
+      result = if new_resource.options.empty?
+                 Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
+                 Vault.logical.read(new_resource.static_path)
+               else
+                 Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
+                 Vault.logical.write(new_resource.vault_path, new_resource.options)
                end
+      Chef::Application.fatal!("[vault-certificate] Vault returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
+      ssl_item = result.data.clone()
+    rescue => e
+      Chef::Application.fatal!(e.message)
+    end
 
     Chef::Application.fatal!('[vault-certificate] Could not get certificate from Vault') if ssl_item[:certificate].nil?
     Chef::Application.fatal!('[vault-certificate] Could not get chain from Vault') if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
     Chef::Application.fatal!('[vault-certificate] Could not get private_key from Vault') if ssl_item[:private_key].nil?
-    ssl_item_copy = ssl_item.clone()
     [:certificate, :issuing_ca, :private_key].each do |part|
-      ssl_item_copy[part] = ssl_item[part] + "\n" if ssl_item.key? part
+      ssl_item[part] = ssl_item[part] + "\n" if ssl_item.key? part
     end
-    ssl_item_copy
+    ssl_item
   end
 
   def generate_pkcs12_store_der(ssl_item = fetch_certs_from_vault, pass = nil)
@@ -338,7 +337,7 @@ action :create do
   end
 
   chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join("\n")
-  bundle_content = "#{ssl_item[:certificate]}#{chain_certs}"
+  bundle_content = ssl_item[:certificate] + chain_certs
   if new_resource.combine_certificate_and_chain
     certificate_file_resource(bundle, bundle_content, !new_resource.output_certificates)
   end

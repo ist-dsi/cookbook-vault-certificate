@@ -71,10 +71,12 @@ property :ssl_path, String, default: lazy { node['vault_certificate']['ssl_path'
 property :create_subfolders, [TrueClass, FalseClass], default: lazy { node['vault_certificate']['create_subfolders'] }, required: true
 # The filename the managed certificate will have on the filesystem. By default "#{common_name}.pem".
 property :certificate_filename, String, default: lazy { "#{common_name}.pem" }
-# The filename the managed CA chain bundle will have on the filesystem. By default "#{common_name}-bundle.crt".
-property :chain_filename, String, default: lazy { "#{common_name}-bundle.crt" }
+# The filename the managed CA chain will have on the filesystem. By default "#{common_name}.chain.pem".
+property :chain_filename, String, default: lazy { "#{common_name}.chain.pem" }
 # The filename the managed private key will have on the filesystem. By default "#{common_name}.key".
 property :key_filename, String, default: lazy { "#{common_name}.key" }
+# The filename the managed bundle (certificate + chain + key?) will have on the filesystem. By default "#{common_name}.bundle.pem".
+property :bundle_filename, String, default: lazy { "#{common_name}.bundle.pem" }
 # The owner of the subfolders, the certificate, the chain and the private key. By default 'root'.
 property :owner, String, default: lazy { node['vault_certificate']['owner'] }, required: true
 # The group of the subfolders, the certificate, the chain and the private key. By default 'root'.
@@ -101,6 +103,12 @@ def key
   ::File.join(bits)
 end
 
+def bundle
+  bits = [ssl_path, bundle_filename]
+  bits.insert(1, 'private') if create_subfolders
+  ::File.join(bits)
+end
+
 def pkcs12store
   ::File.join([store_path, pkcs12store_filename])
 end
@@ -117,14 +125,8 @@ end
 # == Shared methods ====================================================================================================
 # ======================================================================================================================
 action_class do
-  def x509_store
-    store = OpenSSL::X509::Store.new
-    store.set_default_paths
-    store
-  end
-
-  def parse_bundle(file_path)
-    ::File.read(file_path).split(/(?<=-----END CERTIFICATE-----)\n?/).map { |c| OpenSSL::X509::Certificate.new(c) }
+  def parse_bundle(content)
+    content.split(/(?<=-----END CERTIFICATE-----)\n?/).map { |c| OpenSSL::X509::Certificate.new(c) }
   end
 
   def cert_directory_resource(dir, private = false)
@@ -136,35 +138,38 @@ action_class do
     end
   end
 
-  def certificate_file_resource(path, contents, private = false)
+  def certificate_file_resource(path, contents, sensitive = false)
     file path do
       owner new_resource.owner
       group new_resource.group
-      mode(private ? 00640 : 00644)
+      mode(sensitive ? 00640 : 00644)
       content contents
-      sensitive private
+      sensitive sensitive
     end
   end
 
   def fetch_certs_from_vault
     ssl_item = begin
                  if new_resource.options.empty?
-                   Chef::Log.debug("vault-certificate: without options, going to perform a read at #{new_resource.vault_path}")
+                   Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
                    result = Vault.logical.read(new_resource.static_path)
-                   Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.vault_path}'") if result.nil?
+                   Chef::Application.fatal!("[vault-certificate] #{new_resource.address} returned nil for path '#{new_resource.vault_path}'") if result.nil?
                  else
-                   Chef::Log.debug("vault-certificate: with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
+                   Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
                    result = Vault.logical.write(new_resource.vault_path, new_resource.options)
-                   Chef::Application.fatal!("Vault (#{new_resource.address}) returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
+                   Chef::Application.fatal!("[vault-certificate] #{new_resource.address} returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
                  end
                  result.data
                rescue => e
                  Chef::Application.fatal!(e.message)
                end
 
-    Chef::Application.fatal!('Could not get certificate from Vault') if ssl_item[:certificate].nil?
-    Chef::Application.fatal!('Could not get chain from Vault') if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
-    Chef::Application.fatal!('Could not get private_key from Vault') if ssl_item[:private_key].nil?
+    Chef::Application.fatal!('[vault-certificate] Could not get certificate from Vault') if ssl_item[:certificate].nil?
+    Chef::Application.fatal!('[vault-certificate] Could not get chain from Vault') if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
+    Chef::Application.fatal!('[vault-certificate] Could not get private_key from Vault') if ssl_item[:private_key].nil?
+    [:certificate, :issuing_ca, :private_key].each do |part|
+      ssl_item[part] = ssl_item[part] + "\n" if ssl_item.key? part
+    end
     ssl_item
   end
 
@@ -308,18 +313,18 @@ end
 # == Implementation ====================================================================================================
 # ======================================================================================================================
 action :create do
-  # TODO: look into https://docs.chef.io/custom_resources.html#converge-if-changed
-  # to see if we can implement this better
+  # TODO: look into https://docs.chef.io/custom_resources.html#converge-if-changed to see if we can implement this better
   # TODO: we should apply the same logic to the keystores
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
-    if new_resource.combine_certificate_and_chain
-      cert, *cert_chain = parse_bundle(certificate)
-    else
-      cert = OpenSSL::X509::Certificate.new(::File.read(certificate))
-      cert_chain = parse_bundle(chain)
-    end
-    if x509_store.verify(cert, cert_chain)
-      Chef::Log.debug('vault-certificate: the certificate is still valid, not goind to ask Vault for a new one')
+    cert_text = if new_resource.combine_all || new_resource.combine_certificate_and_chain
+                  bundle.partition(/(?<=-----END CERTIFICATE-----\n)/).first
+                else
+                  ::File.read(certificate)
+                end
+    cert = OpenSSL::X509::Certificate.new(cert_text)
+    name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
+    if (cert.not_after > Time.now) && (cert.not_before < Time.now) && (name == new_resource.common_name)
+      Chef::Log.info('[vault-certificate] the certificate is still valid, not goind to ask Vault for a new one')
       return
     end
   end
@@ -332,23 +337,20 @@ action :create do
   end
 
   chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join("\n")
-  if new_resource.combine_all
-    certificate_file_resource certificate,
-                        "#{ssl_item[:certificate]}\n#{chain_certs}\n#{ssl_item[:private_key]}",
-                        true
-  else
-    if new_resource.combine_certificate_and_chain
-      certificate_file_resource certificate, "#{ssl_item[:certificate]}\n#{chain_certs}", !new_resource.output_certificates
-    else
-      certificate_file_resource certificate, ssl_item[:certificate], !new_resource.output_certificates
-      certificate_file_resource chain, chain_certs, !new_resource.output_certificates
-    end
-    certificate_file_resource key, ssl_item[:private_key], true
+  bundle_content = "#{ssl_item[:certificate]}#{chain_certs}"
+  if new_resource.combine_certificate_and_chain
+    certificate_file_resource(bundle, bundle_content, !new_resource.output_certificates)
   end
+  if new_resource.combine_all
+    certificate_file_resource(bundle, bundle_content + ssl_item[:private_key], true)
+  end
+  certificate_file_resource(certificate, ssl_item[:certificate], !new_resource.output_certificates)
+  certificate_file_resource(chain, chain_certs, !new_resource.output_certificates)
+  certificate_file_resource(key, ssl_item[:private_key], true)
 end
 
 action :create_pkcs12_store do
-  Chef::Application.fatal!('store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
+  Chef::Application.fatal!('[vault-certificate] store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
   file pkcs12store do
     content generate_pkcs12_store_der
     owner new_resource.owner

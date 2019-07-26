@@ -11,7 +11,7 @@ license 'Apache-2.0'
 description 'Installs/Configures certificates, private keys, CA root bundles from Hashicorp Vault.'
 long_description IO.read(File.join(File.dirname(__FILE__), 'README.md'))
 
-version '1.0.1'
+version '1.1.0'
 chef_version '>= 14.10'
 
 %w( centos debian ubuntu ).each do |os|

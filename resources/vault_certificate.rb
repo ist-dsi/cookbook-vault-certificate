@@ -167,10 +167,11 @@ action_class do
     Chef::Application.fatal!('[vault-certificate] Could not get certificate from Vault') if ssl_item[:certificate].nil?
     Chef::Application.fatal!('[vault-certificate] Could not get chain from Vault') if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
     Chef::Application.fatal!('[vault-certificate] Could not get private_key from Vault') if ssl_item[:private_key].nil?
+    ssl_item_copy = ssl_item.clone()
     [:certificate, :issuing_ca, :private_key].each do |part|
-      ssl_item[part] = ssl_item[part] + "\n" if ssl_item.key? part
+      ssl_item_copy[part] = ssl_item[part] + "\n" if ssl_item.key? part
     end
-    ssl_item
+    ssl_item_copy
   end
 
   def generate_pkcs12_store_der(ssl_item = fetch_certs_from_vault, pass = nil)

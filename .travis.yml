@@ -1,15 +1,9 @@
-sudo: required
-dist: trusty
-
-services:
-  - docker
-
-language: ruby
+services: docker
 
 addons:
   apt:
     sources:
-      - chef-current-trusty
+      - chef-current-xenial
     packages:
       - chefdk
 

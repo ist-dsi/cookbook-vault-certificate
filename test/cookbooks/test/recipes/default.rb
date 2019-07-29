@@ -23,3 +23,8 @@ vault_certificate 'test-common.example.com' do
   store_password 'testing'
   action :create_pkcs12_store
 end
+
+vault_certificate 'test-common.example.com' do
+  vault_path 'pki/revoke'
+  action :revoke
+end

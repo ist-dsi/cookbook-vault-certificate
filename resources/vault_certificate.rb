@@ -153,6 +153,15 @@ action_class do
     Marshal.load(Marshal.dump(o))
   end
 
+  def x509_certificate
+    cert_text = if new_resource.combine_all || new_resource.combine_certificate_and_chain
+                  ::File.read(bundle).partition(/(?<=-----END CERTIFICATE-----\n)/).first
+                else
+                  ::File.read(certificate)
+                end
+    OpenSSL::X509::Certificate.new(cert_text)
+  end
+
   def fetch_certs_from_vault
     ssl_item = {}
     begin
@@ -321,12 +330,7 @@ action :create do
   # TODO: look into https://docs.chef.io/custom_resources.html#converge-if-changed to see if we can implement this better
   # TODO: we should apply the same logic to the keystores
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
-    cert_text = if new_resource.combine_all || new_resource.combine_certificate_and_chain
-                  ::File.read(bundle).partition(/(?<=-----END CERTIFICATE-----\n)/).first
-                else
-                  ::File.read(certificate)
-                end
-    cert = OpenSSL::X509::Certificate.new(cert_text)
+    cert = x509_certificate
     name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
     if (cert.not_after > Time.now) && (cert.not_before < Time.now) && (name == new_resource.common_name)
       Chef::Log.info('[vault-certificate] the certificate is still valid, not goind to ask Vault for a new one')
@@ -352,6 +356,16 @@ action :create do
   certificate_file_resource(certificate, ssl_item[:certificate], !new_resource.output_certificates)
   certificate_file_resource(chain, chain_certs, !new_resource.output_certificates)
   certificate_file_resource(key, ssl_item[:private_key], true)
+end
+
+action :revoke do
+  if ::File.file?(certificate)
+    serial = x509_certificate.serial.to_s(16).chars.each_slice(2).map { |a| a.join.downcase }.join(':')
+    Vault.logical.write(new_resource.vault_path, serial_number: serial)
+    [certificate, chain, key, bundle].each do |file|
+      ::File.delete(file) if ::File.file? file
+    end
+  end
 end
 
 action :create_pkcs12_store do

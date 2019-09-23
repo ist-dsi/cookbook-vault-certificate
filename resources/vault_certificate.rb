@@ -167,7 +167,7 @@ action_class do
     begin
       result = if new_resource.options.empty?
                  Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
-                 Vault.logical.read(new_resource.static_path)
+                 Vault.logical.read(new_resource.vault_path)
                else
                  Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
                  Vault.logical.write(new_resource.vault_path, new_resource.options)
@@ -208,11 +208,7 @@ action_class do
       chain += ssl_item[:ca_chain].map { |item| OpenSSL::X509::Certificate.new(item) }
     end
 
-    store_pass = if !pass.nil?
-                   pass
-                 else
-                   new_resource.store_password
-                 end
+    store_pass = pass.nil? ? new_resource.store_password : pass
     pkcs12_store = OpenSSL::PKCS12.create(store_pass, new_resource.common_name, key, crt, chain)
     pkcs12_store.to_der
   end

@@ -16,10 +16,3 @@ default['vault_certificate']['ssl_path'] = case node['platform_family']
                                            else
                                              '/etc/ssl'
                                            end
-
-default['vault_certificate']['create_subfolders'] = case node['platform_family']
-                                                    when 'debian', 'rhel', 'fedora', 'smartos'
-                                                      true
-                                                    else
-                                                      false
-                                                    end

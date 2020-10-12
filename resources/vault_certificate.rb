@@ -1,4 +1,5 @@
 resource_name :vault_certificate
+provides :vault_certificate
 
 require 'vault'
 require 'openssl'
@@ -11,22 +12,22 @@ default_action :create
 # CN of the certificate.
 property :common_name, String, name_property: true
 # The path in Vault from which to read or write the certificate
-property :vault_path, String, default: 'pki/issue/my-role', required: true
+property :vault_path, String, required: true
 # The options to pass Vault. If set the Vault operation will be a write otherwise a read.
-property :options, Hash, default: lazy { node['vault_certificate']['options'] || { 'common_name' => common_name } }, required: true
+property :options, Hash, default: lazy { node['vault_certificate']['options'] || { 'common_name' => common_name } }
 # Whether to set the sensitive flag on the generated certificate. The key file is always generated with sensitive set to true
-property :output_certificates, [TrueClass, FalseClass], default: true
+property :output_certificates, [true, false], default: true
 # If set to true vault-certificate will always ask Vault for a certificate. Otherwise it will check whether the certificate
 # and key exist in the file system and if the certificate is still valid. Only when the certificate is invalid (probably
 # because it has expired) will vault certificate ask Vault for a certificate.
-property :always_ask_vault, [TrueClass, FalseClass], default: lazy { node['vault_certificate']['always_ask_vault'] }
+property :always_ask_vault, [true, false], default: lazy { node['vault_certificate']['always_ask_vault'] }
 # ======================================================================================================================
 # == Certificate bundles properties ====================================================================================
 # ======================================================================================================================
 # If true .certificate will point to a PEM file which contains the certificate and the CA trust chain in that order.
-property :combine_certificate_and_chain, [TrueClass, FalseClass], default: false
+property :combine_certificate_and_chain, [true, false], default: false
 # If true .certificate will point to a PEM file which contains the certificate, the CA trust chain, and the private key in that order.
-property :combine_all, [TrueClass, FalseClass], default: false
+property :combine_all, [true, false], default: false
 
 # ======================================================================================================================
 # == Stores (PKCS12 and Java) properties ===============================================================================
@@ -60,15 +61,15 @@ property :pkcs12store_filename, String, default: lazy { "#{common_name}.pkcs12" 
 # ======================================================================================================================
 # == Filesystem properties =============================================================================================
 # ======================================================================================================================
-# The top-level directory in the filesystem where the certificates, chains, and keys will be created. The default value is SO dependent.
+# The top-level directory in the filesystem where the certificates, chains, and keys will be created.
 # If create_subfolders is true then
 #   certificates and chains will be created inside #{certificate_path}/certs
 #   private keys will be created inside #{certificate_path}/private
 # Otherwise
 #   certificates, chains and private keys will be created directly inside certificate_path.
-property :ssl_path, String, default: lazy { node['vault_certificate']['ssl_path'] }, required: true
+property :ssl_path, String, default: lazy { node['vault_certificate']['ssl_path'] }
 # Whether to create 'certs' and 'private' sub-folders inside `certificate_path`. The default value is SO dependent.
-property :create_subfolders, [TrueClass, FalseClass], default: lazy { node['vault_certificate']['create_subfolders'] }, required: true
+property :create_subfolders, [true, false], default: true
 # The filename the managed certificate will have on the filesystem. By default "#{common_name}.pem".
 property :certificate_filename, String, default: lazy { "#{common_name}.pem" }
 # The filename the managed CA chain will have on the filesystem. By default "#{common_name}.chain.pem".
@@ -78,9 +79,9 @@ property :key_filename, String, default: lazy { "#{common_name}.key" }
 # The filename the managed bundle (certificate + chain + key?) will have on the filesystem. By default "#{common_name}.bundle.pem".
 property :bundle_filename, String, default: lazy { "#{common_name}.bundle.pem" }
 # The owner of the subfolders, the certificate, the chain and the private key. By default 'root'.
-property :owner, String, default: lazy { node['vault_certificate']['owner'] }, required: true
+property :owner, String, default: lazy { node['vault_certificate']['owner'] }
 # The group of the subfolders, the certificate, the chain and the private key. By default 'root'.
-property :group, String, default: lazy { node['vault_certificate']['group'] }, required: true
+property :group, String, default: lazy { node['vault_certificate']['group'] }
 
 # ======================================================================================================================
 # == Accesors ==========================================================================================================
@@ -329,7 +330,7 @@ action :create do
     cert = x509_certificate
     name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
     if (cert.not_after > Time.now) && (cert.not_before < Time.now) && (name == new_resource.common_name)
-      Chef::Log.info('[vault-certificate] the certificate is still valid, not goind to ask Vault for a new one')
+      Chef::Log.info('[vault-certificate] the certificate is still valid, not going to ask Vault for a new one')
       return
     end
   end

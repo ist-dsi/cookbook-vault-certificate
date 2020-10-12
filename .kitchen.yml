@@ -14,8 +14,8 @@ provisioner:
   deprecations_as_errors: false
 
 platforms:
-  - name: debian
   - name: centos
+  - name: debian
   - name: ubuntu
   - name: fedora
 
@@ -23,16 +23,5 @@ suites:
   - name: default
     attributes:
       token: <%= ENV['VAULT_TOKEN'] %>
-      java:
-        jdk_version: 12
-        install_flavor: adoptopenjdk
-        adoptopenjdk:
-          variant: hotspot
-          '12':
-            x86_64:
-              hotspot:
-                url: "https://github.com/AdoptOpenJDK/openjdk12-binaries/releases/download/jdk-12.0.1%2B12/OpenJDK12U-jdk_x64_linux_hotspot_12.0.1_12.tar.gz"
-                checksum: "dd3fdf3771a05a010029c1cf1aef516928eab55d6f5eb019008875e9ccbc8337"
     run_list:
-      - recipe[java] # We need java to generate key/trust stores
       - recipe[test::default]

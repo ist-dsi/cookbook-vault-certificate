@@ -12,8 +12,8 @@ install: echo "skip bundle install"
 
 env:
   matrix:
-  - INSTANCE=debian
   - INSTANCE=centos
+  - INSTANCE=debian
   - INSTANCE=ubuntu
 
 before_script:

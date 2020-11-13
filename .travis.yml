@@ -28,7 +28,5 @@ script: kitchen verify ${INSTANCE}
 
 matrix:
   include:
-    - script:
-      - cookstyle -D
-      - foodcritic .
+    - script: cookstyle -D
       env: LINTING=1

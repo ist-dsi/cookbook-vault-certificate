@@ -3,8 +3,6 @@ driver:
   use_sudo: false
   links:
     - dev-vault:dev-vault
-  run_options:
-    net: bridge
   # dockerfile: test/dockerfile
 
 provisioner:
@@ -17,7 +15,6 @@ platforms:
   - name: centos
   - name: debian
   - name: ubuntu
-  - name: fedora
 
 suites:
   - name: default

@@ -126,6 +126,14 @@ end
 # ======================================================================================================================
 # == Shared methods ====================================================================================================
 # ======================================================================================================================
+class VaultCertificateError < ArgumentError
+  attr_reader :data
+  def initialize(message, data)
+    @data = data
+    super(message)
+  end
+end
+
 action_class do
   def parse_bundle(content)
     content.split(/(?<=-----END CERTIFICATE-----)\n?/).map { |c| OpenSSL::X509::Certificate.new(c) }
@@ -164,24 +172,24 @@ action_class do
   end
 
   def fetch_certs_from_vault
-    ssl_item = {}
-    begin
-      result = if new_resource.options.empty?
-                 Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
-                 Vault.logical.read(new_resource.vault_path)
-               else
-                 Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
-                 Vault.logical.write(new_resource.vault_path, new_resource.options)
-               end
-      Chef::Application.fatal!("[vault-certificate] Vault returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}") if result.nil?
-      ssl_item = deep_copy(result.data)
-    rescue => e
-      Chef::Application.fatal!(e.message)
-    end
+    result = if new_resource.options.empty?
+               Chef::Log.info("[vault-certificate] without options, going to perform a read at #{new_resource.vault_path}")
+               Vault.logical.read(new_resource.vault_path)
+             else
+               Chef::Log.info("[vault-certificate] with options = #{new_resource.options}, going to perform a write at #{new_resource.vault_path}")
+               Vault.logical.write(new_resource.vault_path, new_resource.options)
+             end
+    raise ArgumentError, "[vault-certificate] Vault returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}" if result.nil?
 
-    Chef::Application.fatal!('[vault-certificate] Could not get certificate from Vault') if ssl_item[:certificate].nil?
-    Chef::Application.fatal!('[vault-certificate] Could not get chain from Vault') if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
-    Chef::Application.fatal!('[vault-certificate] Could not get private_key from Vault') if ssl_item[:private_key].nil?
+    ssl_item = deep_copy(result.data)
+    missing_items = []
+    missing_items += ['certificate'] if ssl_item[:certificate].nil?
+    missing_items += ['chain'] if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
+    missing_items += ['private_key'] if ssl_item[:private_key].nil?
+    unless missing_items.empty?
+      # This will probably log the private_key, should we ommit it?
+      raise VaultCertificateError.new("[vault-certificate] Could not get #{missing_items.join(', ')} from Vault", ssl_item)
+    end
     [:certificate, :issuing_ca, :private_key].each do |part|
       ssl_item[part] = ssl_item[part] + "\n" if ssl_item.key? part
     end
@@ -217,7 +225,7 @@ action_class do
   def ensure_keytool_is_installed
     Mixlib::ShellOut.new('keytool').run_command
   rescue
-    Chef::Application.fatal!('Keytool is not installed. Cannot generate Java key/trust stores!')
+    raise 'Keytool is not installed. Cannot generate Java key/trust stores!'
   end
 
   def encrypt_key?
@@ -251,9 +259,9 @@ action_class do
   def create_keystore(ssl_item = fetch_certs_from_vault)
     ensure_keytool_is_installed
 
-    Chef::Application.fatal!('store_path is nil while trying to generate a Java keystore') if new_resource.store_path.nil?
+    raise 'store_path is nil while trying to generate a Java keystore' if new_resource.store_path.nil?
     if new_resource.keystore_password.nil? || new_resource.keystore_password.length < 6
-      Chef::Application.fatal!('keystore_password must be defined and have at least 6 characters.')
+      raise 'keystore_password must be defined and have at least 6 characters.'
     end
     require 'tempfile'
     tempfile = Tempfile.new("#{new_resource.common_name}.pkcs12")
@@ -271,7 +279,7 @@ action_class do
       keytool = Mixlib::ShellOut.new(command_string)
       keytool.run_command
       unless keytool.exitstatus == 0
-        Chef::Application.fatal!("Failed to create keystore! #{keytool.stdout}\n\n#{keytool.stderr}")
+        raise "Failed to create keystore! #{keytool.stdout}\n\n#{keytool.stderr}"
       end
 
       file keystore do
@@ -286,9 +294,9 @@ action_class do
   def create_truststore(ssl_item = fetch_certs_from_vault)
     ensure_keytool_is_installed
 
-    Chef::Application.fatal!('store_path is nil while trying to generate a Java truststore.') if new_resource.store_path.nil?
+    raise 'store_path is nil while trying to generate a Java truststore.' if new_resource.store_path.nil?
     if new_resource.truststore_password.nil? || new_resource.truststore_password.length < 6
-      Chef::Application.fatal!('truststore_password must be defined and have at least 6 characters.')
+      raise 'truststore_password must be defined and have at least 6 characters.'
     end
 
     chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join('\n')
@@ -309,7 +317,7 @@ action_class do
       keytool.input = chain_certs
       keytool.run_command
       unless keytool.exitstatus == 0
-        Chef::Application.fatal!("Failed to create keystore! #{keytool.stdout}\n\n#{keytool.stderr}")
+        raise "Failed to create keystore! #{keytool.stdout}\n\n#{keytool.stderr}"
       end
 
       file truststore do

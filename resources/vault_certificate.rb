@@ -126,14 +126,6 @@ end
 # ======================================================================================================================
 # == Shared methods ====================================================================================================
 # ======================================================================================================================
-class VaultCertificateError < ArgumentError
-  attr_reader :data
-  def initialize(message, data)
-    @data = data
-    super(message)
-  end
-end
-
 action_class do
   def parse_bundle(content)
     content.split(/(?<=-----END CERTIFICATE-----)\n?/).map { |c| OpenSSL::X509::Certificate.new(c) }

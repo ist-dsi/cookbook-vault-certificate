@@ -173,7 +173,8 @@ action_class do
              end
     raise ArgumentError, "[vault-certificate] Vault returned nil for path '#{new_resource.vault_path}' and options #{new_resource.options}" if result.nil?
 
-    ssl_item = deep_copy(result.data)
+    # The if makes it possible to read from KV version 2.
+    ssl_item = deep_copy(result.data.key?(:data) ? result.data[:data] : result.data)
     missing_items = []
     missing_items += ['certificate'] if ssl_item[:certificate].nil?
     missing_items += ['chain'] if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?

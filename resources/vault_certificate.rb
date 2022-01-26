@@ -21,6 +21,8 @@ property :output_certificates, [true, false], default: true
 # and key exist in the file system and if the certificate is still valid. Only when the certificate is invalid (probably
 # because it has expired) will vault certificate ask Vault for a certificate.
 property :always_ask_vault, [true, false], default: lazy { node['vault_certificate']['always_ask_vault'] }
+# Number of days to request a new certificate before the current one expires, default 0 days.
+property :ask_vault_n_days_before_expiry, default: 0
 # ======================================================================================================================
 # == Certificate bundles properties ====================================================================================
 # ======================================================================================================================
@@ -332,7 +334,7 @@ action :create do
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
     cert = x509_certificate
     name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
-    if (cert.not_after > Time.now) && (cert.not_before < Time.now) && (name == new_resource.common_name)
+    if (cert.not_after > Time.now + new_resource.ask_vault_n_days_before_expiry * 24 * 3600 ) && (cert.not_before < Time.now) && (name == new_resource.common_name)
       Chef::Log.info('[vault-certificate] the certificate is still valid, not going to ask Vault for a new one')
       return
     end

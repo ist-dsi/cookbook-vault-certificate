@@ -22,7 +22,7 @@ property :output_certificates, [true, false], default: true
 # because it has expired) will vault certificate ask Vault for a certificate.
 property :always_ask_vault, [true, false], default: lazy { node['vault_certificate']['always_ask_vault'] }
 # Number of days to request a new certificate before the current one expires, default 0 days.
-property :ask_vault_n_days_before_expiry, default: 0
+property :ask_vault_n_days_before_expiry, Integer, default: 0
 # ======================================================================================================================
 # == Certificate bundles properties ====================================================================================
 # ======================================================================================================================
@@ -220,7 +220,7 @@ action_class do
   end
 
   def ensure_keytool_is_installed
-    shell_out('keytool')
+    Mixlib::ShellOut.new('keytool').run_command
   rescue
     raise 'Keytool is not installed. Cannot generate Java key/trust stores!'
   end
@@ -334,9 +334,9 @@ action :create do
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
     cert = x509_certificate
     name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
-    if (cert.not_before < Time.now) && (Time.now + new_resource.ask_vault_n_days_before_expiry * 24 * 3600 < cert.not_after) && (name == new_resource.common_name)
+    if (cert.not_before < Time.now) && (cert.not_after > Time.now + new_resource.ask_vault_n_days_before_expiry * 24 * 3600) && (name == new_resource.common_name)
       Chef::Log.info('[vault-certificate] the certificate is still valid, not going to ask Vault for a new one')
-      return v
+      return
     end
   end
 
@@ -371,7 +371,7 @@ action :revoke do
 end
 
 action :create_pkcs12_store do
-  raise('[vault-certificate] store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
+  Chef::Application.fatal!('[vault-certificate] store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
   file pkcs12store do
     content generate_pkcs12_store_der
     owner new_resource.owner

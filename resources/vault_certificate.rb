@@ -22,7 +22,7 @@ property :output_certificates, [true, false], default: true
 # because it has expired) will vault certificate ask Vault for a certificate.
 property :always_ask_vault, [true, false], default: lazy { node['vault_certificate']['always_ask_vault'] }
 # Number of days to request a new certificate before the current one expires, default 0 days.
-property :ask_vault_n_days_before_expiry, Integer, default: 0
+property :ask_vault_n_days_before_expiry, Integer, default: 30
 # ======================================================================================================================
 # == Certificate bundles properties ====================================================================================
 # ======================================================================================================================

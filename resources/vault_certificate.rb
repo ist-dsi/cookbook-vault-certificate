@@ -178,7 +178,7 @@ action_class do
     ssl_item = deep_copy(result.data)
     # The if makes it possible to read from KV version 2.
     ssl_item = ssl_item.key?(:data) ? ssl_item[:data] : ssl_item
-    
+
     missing_items = []
     missing_items += ['certificate'] if ssl_item[:certificate].nil?
     missing_items += ['chain'] if ssl_item[:ca_chain].nil? && ssl_item[:issuing_ca].nil?
@@ -220,7 +220,7 @@ action_class do
   end
 
   def ensure_keytool_is_installed
-    Mixlib::ShellOut.new('keytool').run_command
+    shell_out('keytool')
   rescue
     raise 'Keytool is not installed. Cannot generate Java key/trust stores!'
   end
@@ -334,9 +334,9 @@ action :create do
   if new_resource.always_ask_vault == false && ::File.file?(key) && ::File.file?(certificate)
     cert = x509_certificate
     name = cert.subject.to_a.select { |a| a.first == 'CN' }.first[1]
-    if (cert.not_after > Time.now + new_resource.ask_vault_n_days_before_expiry * 24 * 3600 ) && (cert.not_before < Time.now) && (name == new_resource.common_name)
+    if (cert.not_before < Time.now) && (Time.now + new_resource.ask_vault_n_days_before_expiry * 24 * 3600 < cert.not_after) && (name == new_resource.common_name)
       Chef::Log.info('[vault-certificate] the certificate is still valid, not going to ask Vault for a new one')
-      return
+      return v
     end
   end
 
@@ -371,7 +371,7 @@ action :revoke do
 end
 
 action :create_pkcs12_store do
-  Chef::Application.fatal!('[vault-certificate] store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
+  raise('[vault-certificate] store_path is nil while trying to generate a PKCS12 store') if new_resource.store_path.nil?
   file pkcs12store do
     content generate_pkcs12_store_der
     owner new_resource.owner

@@ -1,3 +1,5 @@
+# unified_mode true
+
 resource_name :vault_certificate
 provides :vault_certificate
 
@@ -143,12 +145,14 @@ action_class do
   end
 
   def certificate_file_resource(path, contents, sensitive = false)
-    file path do
-      owner new_resource.owner
-      group new_resource.group
-      mode(sensitive ? 00640 : 00644)
-      content contents
-      sensitive sensitive
+    with_run_context :root do
+      file path do
+        owner new_resource.owner
+        group new_resource.group
+        mode(sensitive ? 00640 : 00644)
+        content contents
+        sensitive sensitive
+      end
     end
   end
 
@@ -358,6 +362,7 @@ action :create do
   certificate_file_resource(certificate, ssl_item[:certificate], !new_resource.output_certificates)
   certificate_file_resource(chain, chain_certs, !new_resource.output_certificates)
   certificate_file_resource(key, ssl_item[:private_key], true)
+
 end
 
 action :revoke do

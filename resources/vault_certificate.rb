@@ -298,7 +298,7 @@ action_class do
       raise 'truststore_password must be defined and have at least 6 characters.'
     end
 
-    chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join('\n')
+    chain_certs = ssl_item[:ca_chain].nil? ? ssl_item[:issuing_ca] : ssl_item[:ca_chain].join("\n")
     store_alias = new_resource.common_name
     if already_in_store?(truststore, new_resource.truststore_password, store_alias, chain_certs)
       # The truststore already exists and has its content up to date. Have have to do nothing
